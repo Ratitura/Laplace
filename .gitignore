@@ -1,0 +1,39 @@
+# Xmake / Build
+build/
+.xmake/
+compile_commands.json
+
+# Clangd / LSP
+.cache/
+*.pud
+*.obj
+*.o
+*.lib
+*.a
+*.exe
+*.dll
+*.so
+
+# IDE / Editors
+.vscode/
+.vs/
+*.swp
+*.swo
+*.suo
+*.user
+*.ncb
+*.aps
+
+# System
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# Logs / Scratch output
+*.log
+bench_stdout*.txt
+bench_stderr*.txt
+build_verbose*.txt
+
+impl/

@@ -1,0 +1,23 @@
+#include "laplace/config.h"
+#include "test_harness.h"
+
+int laplace_test_config(void) {
+    LAPLACE_TEST_ASSERT(LAPLACE_CACHELINE_BYTES == 64u);
+
+#if defined(_WIN32)
+    LAPLACE_TEST_ASSERT(LAPLACE_PLATFORM_WINDOWS == 1);
+#else
+    LAPLACE_TEST_ASSERT(LAPLACE_PLATFORM_WINDOWS == 0);
+#endif
+
+#if defined(__clang__)
+    LAPLACE_TEST_ASSERT(LAPLACE_COMPILER_CLANG == 1);
+#else
+    LAPLACE_TEST_ASSERT(LAPLACE_COMPILER_CLANG == 0);
+#endif
+
+    LAPLACE_TEST_ASSERT((LAPLACE_BUILD_DEBUG == 1) || (LAPLACE_BUILD_RELEASE == 1));
+    LAPLACE_TEST_ASSERT(!(LAPLACE_BUILD_DEBUG == 1 && LAPLACE_BUILD_RELEASE == 1));
+
+    return 0;
+}
