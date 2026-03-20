@@ -21,6 +21,13 @@ int laplace_test_trace(void);
 int laplace_test_replay(void);
 int laplace_test_observe(void);
 int laplace_test_adapter(void);
+int laplace_test_kernel(void);
+int laplace_test_derive(void);
+int laplace_test_proof(void);
+int laplace_test_proof_verify(void);
+int laplace_test_proof_search(void);
+int laplace_test_graph_profile(void);
+int laplace_test_graph_artifact(void);
 
 int main(void) {
     const laplace_test_case_t tests[] = {
@@ -42,6 +49,13 @@ int main(void) {
         {"replay", laplace_test_replay},
         {"observe", laplace_test_observe},
         {"adapter", laplace_test_adapter},
+        {"kernel", laplace_test_kernel},
+        {"derive", laplace_test_derive},
+        {"proof", laplace_test_proof},
+        {"proof_verify", laplace_test_proof_verify},
+        {"proof_search", laplace_test_proof_search},
+        {"graph_profile", laplace_test_graph_profile},
+        {"graph_artifact", laplace_test_graph_artifact},
     };
 
     int failures = 0;

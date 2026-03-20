@@ -5,12 +5,6 @@
 #include "bench_harness.h"
 #include "laplace/hv.h"
 
-/*
- * Forward declarations for scalar word-level kernels.
- * These are always available regardless of backend selection.
- * Used here to benchmark the scalar path directly for comparison
- * when an optimized backend is active.
- */
 extern void     laplace__hv_bind_words_scalar(uint64_t* restrict dst,
                                                const uint64_t* a,
                                                const uint64_t* b,
@@ -21,10 +15,6 @@ extern uint32_t laplace__hv_xor_popcount_words_scalar(const uint64_t* a,
 extern uint32_t laplace__hv_popcount_words_scalar(const uint64_t* words,
                                                    uint32_t num_words);
 
-/*
- * Benchmark context for HV operations.
- * Uses volatile sink to prevent dead-code elimination.
- */
 typedef struct hv_bench_ctx {
     laplace_hv_t a;
     laplace_hv_t b;
@@ -35,7 +25,6 @@ typedef struct hv_bench_ctx {
 
 static hv_bench_ctx_t g_ctx;
 
-/* Pre-generate test vectors once. */
 static void hv_bench_setup(void) {
     laplace_hv_random(&g_ctx.a, 0xBEEFCAFEu);
     laplace_hv_random(&g_ctx.b, 0xDEADF00Du);
@@ -96,15 +85,11 @@ static void bench_hv_random(void* const context) {
     ctx->sink_u32 += 1u;
 }
 
-/* --- bundle N=1 (trivial copy fast path) --- */
-
 static void bench_hv_bundle1(void* const context) {
     hv_bench_ctx_t* const ctx = (hv_bench_ctx_t*)context;
     const laplace_hv_t* ptrs[1] = { &ctx->a };
     laplace_hv_bundle(&ctx->dst, ptrs, 1u, 0u);
 }
-
-/* --- bundle N=2 (fast path: word-level tie-break) --- */
 
 static laplace_hv_t g_bvecs2[2];
 static const laplace_hv_t* g_bptrs2[2];
@@ -114,8 +99,6 @@ static void bench_hv_bundle2(void* const context) {
     laplace_hv_bundle(&ctx->dst, g_bptrs2, 2u, 42u);
 }
 
-/* --- bundle N=3 (fast path: bitwise majority) --- */
-
 static laplace_hv_t g_bvecs3[3];
 static const laplace_hv_t* g_bptrs3[3];
 
@@ -123,8 +106,6 @@ static void bench_hv_bundle3(void* const context) {
     hv_bench_ctx_t* const ctx = (hv_bench_ctx_t*)context;
     laplace_hv_bundle(&ctx->dst, g_bptrs3, 3u, 42u);
 }
-
-/* --- bundle N=4 (fast path: carry-chain counter) --- */
 
 static laplace_hv_t g_bvecs4[4];
 static const laplace_hv_t* g_bptrs4[4];
@@ -134,8 +115,6 @@ static void bench_hv_bundle4_even(void* const context) {
     laplace_hv_bundle(&ctx->dst, g_bptrs4, 4u, 42u);
 }
 
-/* --- bundle N=5 (generic odd, bit-sliced) --- */
-
 static laplace_hv_t g_bvecs5[5];
 static const laplace_hv_t* g_bptrs5[5];
 
@@ -144,8 +123,6 @@ static void bench_hv_bundle5_odd(void* const context) {
     laplace_hv_bundle(&ctx->dst, g_bptrs5, 5u, 42u);
 }
 
-/* --- bundle N=7 (generic odd, bit-sliced) --- */
-
 static laplace_hv_t g_bvecs7[7];
 static const laplace_hv_t* g_bptrs7[7];
 
@@ -153,8 +130,6 @@ static void bench_hv_bundle7(void* const context) {
     hv_bench_ctx_t* const ctx = (hv_bench_ctx_t*)context;
     laplace_hv_bundle(&ctx->dst, g_bptrs7, 7u, 42u);
 }
-
-/* --- bundle N=15 (generic odd, bit-sliced, larger) --- */
 
 static laplace_hv_t g_bvecs15[15];
 static const laplace_hv_t* g_bptrs15[15];
@@ -242,13 +217,11 @@ static void hv_bench_setup_bundle_vectors(void) {
 }
 
 void laplace_bench_hv(void) {
-    /* Setup */
     hv_bench_setup();
     hv_bench_setup_bundle_vectors();
 
     printf("  Active HV backend: %s\n\n", laplace_hv_backend_name());
 
-    /* --- Core ops via active backend --- */
     printf("  Core ops (active backend: %s):\n", laplace_hv_backend_name());
     const laplace_bench_case_t core_benches[] = {
         {"hv_bind",       bench_hv_bind,       &g_ctx, 1000000u},
@@ -263,7 +236,6 @@ void laplace_bench_hv(void) {
         laplace_bench_run_case(&core_benches[i]);
     }
 
-    /* --- Core ops via scalar-direct (reference baseline, always available) --- */
     printf("\n  Core ops (scalar-direct reference):\n");
     const laplace_bench_case_t scalar_benches[] = {
         {"hv_bind_scalar",       bench_hv_bind_scalar,       &g_ctx, 1000000u},
@@ -277,15 +249,6 @@ void laplace_bench_hv(void) {
         laplace_bench_run_case(&scalar_benches[i]);
     }
 
-    /* --- Bundle: optimized production paths (with fast-path dispatch) --- */
-    /* Path mapping:
-     *   hv_bundle2_even -> dispatch -> laplace__hv_bundle2_words
-     *   hv_bundle3      -> dispatch -> laplace__hv_bundle3_words
-     *   hv_bundle4_even -> dispatch -> laplace__hv_bundle4_words
-     *   hv_bundle5_odd  -> dispatch -> laplace__hv_bundle_generic (bit-sliced)
-     *   hv_bundle7      -> dispatch -> laplace__hv_bundle_generic (bit-sliced)
-     *   hv_bundle15     -> dispatch -> laplace__hv_bundle_generic (bit-sliced)
-     */
     printf("\n  Bundle (optimized, dispatched):\n");
     const laplace_bench_case_t bundle_opt_benches[] = {
         {"hv_bundle1",       bench_hv_bundle1,      &g_ctx, 1000000u},
@@ -302,13 +265,6 @@ void laplace_bench_hv(void) {
         laplace_bench_run_case(&bundle_opt_benches[i]);
     }
 
-    /* --- Bundle: direct fast-path (bypasses dispatch if-chain) --- */
-    /* Path mapping:
-     *   hv_bundle2_direct -> laplace__hv_bundle2_words (no dispatch)
-     *   hv_bundle3_direct -> laplace__hv_bundle3_words (no dispatch)
-     * Comparing these against the dispatched variants above reveals
-     * the cost (if any) of the dispatch if-chain.
-     */
     printf("\n  Bundle (direct fast-path, no dispatch):\n");
     const laplace_bench_case_t bundle_direct_benches[] = {
         {"hv_bundle2_direct",  bench_hv_bundle2_direct, &g_ctx, 1000000u},
@@ -320,9 +276,6 @@ void laplace_bench_hv(void) {
         laplace_bench_run_case(&bundle_direct_benches[i]);
     }
 
-    /* --- Bundle: forced-generic path (bit-sliced, no fast-path dispatch) --- */
-    /* These cases intentionally bypass dispatch fast paths to validate that
-     * the generic bit-sliced kernel is measured directly for the same k. */
     printf("\n  Bundle (forced-generic, bit-sliced):\n");
     const laplace_bench_case_t bundle_gen_benches[] = {
         {"hv_bundle2_generic",  bench_hv_bundle2_generic, &g_ctx, 200000u},
@@ -336,9 +289,6 @@ void laplace_bench_hv(void) {
         laplace_bench_run_case(&bundle_gen_benches[i]);
     }
 
-    /* --- Bundle: reference path (bit-by-bit oracle, for comparison) --- */
-    /* These cases measure the trusted reference implementation and should
-     * remain materially slower than forced-generic/optimized paths. */
     printf("\n  Bundle (reference, bit-by-bit):\n");
     const laplace_bench_case_t bundle_ref_benches[] = {
         {"hv_bundle2_ref",   bench_hv_bundle2_ref,  &g_ctx, 200000u},

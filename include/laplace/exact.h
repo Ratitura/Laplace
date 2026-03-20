@@ -16,54 +16,6 @@ typedef struct laplace_observe_context laplace_observe_context_t;
 extern "C" {
 #endif
 
-/*
- * Exact symbolic substrate.
- *
- * Truth authority:
- *   The exact symbolic layer is the final authoritative source of truth for
- *   committed logical facts, rule semantics, and entity uniqueness.
- *   The HDC/VSA (hypervector) layer is advisory and accelerating only.
- *   No committed fact may originate solely from approximate similarity,
- *   Bloom-style filtering, bundled overlap, or HV distance.
- *   Exact-vs-approximate conflicts are always resolved in favor of exact
- *   symbolic state.
- *
- * Scope:
- *   This header declares the exact predicate registry, fact storage with
- *   hash-interned deduplication, relation-local predicate postings, bounded
- *   positive Horn/Datalog rule representation with validation, and provenance
- *   record storage.  All storage is preallocated from arenas with fixed
- *   compile-time capacity limits.  No heap allocation occurs after init.
- *
- * Rule language subset:
- *   Rules are restricted to positive Horn/Datalog: exactly one head literal,
- *   one or more positive body literals, no negation, no disjunction, no
- *   function symbols, no aggregates.  Terms are either variables or constants.
- *   All head variables must appear in at least one body literal (safety).
- *
- * Known limitations:
- *   - Constants have no reclamation/lifecycle protocol.  Once registered,
- *     a constant entity retains its CONSTANT role until the entity is freed
- *     via the entity pool.  Freeing a constant entity that is referenced by
- *     existing facts produces stale references.
- *   - Predicate-local postings are an initial exact index substrate for
- *     contiguous relation-local scans, not a full join optimizer or query
- *     planner.  Multi-predicate joins are the responsibility of the execution
- *     system.
- *   - Provenance records are a substrate for auditability.  Full replay
- *     orchestration, provenance DAG traversal, and trace logging are handled
- *     by the observability layer.
- *   - Dynamic rule mutation at execution time is out of scope.  Rules are
- *     append-only once validated and stored.  Rule retraction or modification
- *     requires a formal migration phase.
- *   - Branch/epoch fields in provenance records are reserved placeholders.
- *     They do not imply active branch semantics until the branch system is
- *     engaged.
- *   - The exact substrate does not interact with the HV/HDC layer.  No
- *     approximate topology, Bloom filter, or HV similarity is used within
- *     exact operations.
- */
-
 enum {
     LAPLACE_EXACT_MAX_PREDICATES = 128u,
     LAPLACE_EXACT_MAX_FACTS = 2048u,
@@ -220,7 +172,6 @@ typedef struct laplace_exact_provenance_record {
 typedef struct laplace_exact_store {
     laplace_entity_pool_t* entity_pool;
 
-    /* NULL disables tracing */
     laplace_observe_context_t* observe;
 
     uint32_t predicate_count;

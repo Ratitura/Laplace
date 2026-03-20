@@ -10,8 +10,6 @@ static laplace_adapter_status_t validate_adapter_term(
         return LAPLACE_ADAPTER_ERR_INVALID_FORMAT;
     }
 
-    /* Variable IDs must be non-zero and fit in uint16_t (laplace_exact_var_id_t).
-     * Variable ID 0 is LAPLACE_EXACT_VAR_ID_INVALID. */
     if (term->kind == (uint32_t)LAPLACE_EXACT_TERM_VARIABLE &&
         (term->value == 0 || term->value > (uint32_t)UINT16_MAX)) {
         return LAPLACE_ADAPTER_ERR_INVALID_FORMAT;
@@ -55,7 +53,6 @@ static void convert_literal(laplace_exact_literal_t* const dst,
     for (uint32_t i = 0; i < src->arity; ++i) {
         convert_term(&dst->terms[i], &src->terms[i]);
     }
-    /* Zero remaining terms for cleanliness. */
     for (uint32_t i = src->arity; i < LAPLACE_EXACT_MAX_ARITY; ++i) {
         memset(&dst->terms[i], 0, sizeof(dst->terms[i]));
     }

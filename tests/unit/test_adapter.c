@@ -51,9 +51,6 @@ static int adapter_fixture_init(test_adapter_fixture_t* const f) {
     return 0;
 }
 
-/*
- * Register a unary predicate (arity=1) with the given ID.
- */
 static int register_unary_predicate(test_adapter_fixture_t* const f,
                                      const laplace_predicate_id_t pred_id) {
     const laplace_exact_predicate_desc_t desc = {
@@ -66,9 +63,6 @@ static int register_unary_predicate(test_adapter_fixture_t* const f,
     return 0;
 }
 
-/*
- * Register a binary predicate (arity=2) with the given ID.
- */
 static int register_binary_predicate(test_adapter_fixture_t* const f,
                                       const laplace_predicate_id_t pred_id) {
     const laplace_exact_predicate_desc_t desc = {
@@ -81,9 +75,6 @@ static int register_binary_predicate(test_adapter_fixture_t* const f,
     return 0;
 }
 
-/*
- * Allocate an entity and register it as a constant.
- */
 static int alloc_constant(test_adapter_fixture_t* const f,
                            laplace_entity_handle_t* const out) {
     *out = laplace_entity_pool_alloc(&f->entity_pool);
@@ -97,10 +88,6 @@ static int alloc_constant(test_adapter_fixture_t* const f,
                                         0u) == LAPLACE_OK);
     return 0;
 }
-
-/* ====================================================================
- * Test: capability query
- * ==================================================================== */
 
 static int test_adapter_capability(void) {
     laplace_adapter_capability_t cap;
@@ -132,20 +119,12 @@ static int test_adapter_capability(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: version check
- * ==================================================================== */
-
 static int test_adapter_version_check(void) {
     LAPLACE_TEST_ASSERT(laplace_adapter_check_version(LAPLACE_ADAPTER_ABI_VERSION) == true);
     LAPLACE_TEST_ASSERT(laplace_adapter_check_version(0) == false);
     LAPLACE_TEST_ASSERT(laplace_adapter_check_version(999) == false);
     return 0;
 }
-
-/* ====================================================================
- * Test: status strings
- * ==================================================================== */
 
 static int test_adapter_status_strings(void) {
     LAPLACE_TEST_ASSERT(laplace_adapter_status_string(LAPLACE_ADAPTER_OK) != NULL);
@@ -154,41 +133,28 @@ static int test_adapter_status_strings(void) {
     LAPLACE_TEST_ASSERT(laplace_adapter_status_string(LAPLACE_ADAPTER_ERR_DIMENSION_MISMATCH) != NULL);
     LAPLACE_TEST_ASSERT(laplace_adapter_status_string(LAPLACE_ADAPTER_ERR_BATCH_OVERFLOW) != NULL);
 
-    /* Verify strings are distinct. */
     LAPLACE_TEST_ASSERT(
         strcmp(laplace_adapter_status_string(LAPLACE_ADAPTER_OK),
                laplace_adapter_status_string(LAPLACE_ADAPTER_ERR_NULL_ARGUMENT)) != 0);
 
-    /* Unknown status should still return a valid string. */
     LAPLACE_TEST_ASSERT(laplace_adapter_status_string((laplace_adapter_status_t)9999) != NULL);
 
     return 0;
 }
 
-/* ====================================================================
- * Test: rule artifact - valid import
- * ==================================================================== */
-
 static int test_adapter_rule_import_valid(void) {
     test_adapter_fixture_t f;
     LAPLACE_TEST_ASSERT(adapter_fixture_init(&f) == 0);
 
-    /* Register predicates: parent/2, ancestor/2. */
     const laplace_predicate_id_t PARENT   = 1;
     const laplace_predicate_id_t ANCESTOR = 2;
     LAPLACE_TEST_ASSERT(register_binary_predicate(&f, PARENT) == 0);
     LAPLACE_TEST_ASSERT(register_binary_predicate(&f, ANCESTOR) == 0);
 
-    /* Allocate constants. */
     laplace_entity_handle_t c_a, c_b;
     LAPLACE_TEST_ASSERT(alloc_constant(&f, &c_a) == 0);
     LAPLACE_TEST_ASSERT(alloc_constant(&f, &c_b) == 0);
 
-    /*
-     * Rule: ancestor(X, Y) :- parent(X, Y).
-     * Head: ancestor(X=var0, Y=var1)
-     * Body: parent(X=var0, Y=var1)
-     */
     laplace_adapter_rule_artifact_t artifact;
     memset(&artifact, 0, sizeof(artifact));
     artifact.abi_version      = LAPLACE_ADAPTER_ABI_VERSION;
@@ -196,7 +162,6 @@ static int test_adapter_rule_import_valid(void) {
     artifact.compiler_id      = 42;
     artifact.compiler_version = 1;
 
-    /* Head: ancestor(X=var1, Y=var2). */
     artifact.head.predicate_id = ANCESTOR;
     artifact.head.arity        = 2;
     artifact.head.terms[0]     = (laplace_adapter_term_t){
@@ -204,7 +169,6 @@ static int test_adapter_rule_import_valid(void) {
     artifact.head.terms[1]     = (laplace_adapter_term_t){
         .kind = LAPLACE_EXACT_TERM_VARIABLE, .value = 2};
 
-    /* Body[0]: parent(X=var1, Y=var2). */
     artifact.body[0].predicate_id = PARENT;
     artifact.body[0].arity        = 2;
     artifact.body[0].terms[0]     = (laplace_adapter_term_t){
@@ -224,10 +188,6 @@ static int test_adapter_rule_import_valid(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: rule artifact - invalid version rejection
- * ==================================================================== */
-
 static int test_adapter_rule_import_invalid_version(void) {
     laplace_adapter_rule_artifact_t artifact;
     memset(&artifact, 0, sizeof(artifact));
@@ -241,31 +201,21 @@ static int test_adapter_rule_import_invalid_version(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: rule artifact - invalid body count
- * ==================================================================== */
-
 static int test_adapter_rule_import_invalid_body_count(void) {
     laplace_adapter_rule_artifact_t artifact;
     memset(&artifact, 0, sizeof(artifact));
     artifact.abi_version = LAPLACE_ADAPTER_ABI_VERSION;
 
-    /* Zero body count is invalid (rules require at least one body literal). */
     artifact.body_count = 0;
     LAPLACE_TEST_ASSERT(
         laplace_adapter_validate_rule_artifact(&artifact) == LAPLACE_ADAPTER_ERR_INVALID_FORMAT);
 
-    /* Exceeding max body literals is invalid. */
     artifact.body_count = LAPLACE_EXACT_MAX_RULE_BODY_LITERALS + 1;
     LAPLACE_TEST_ASSERT(
         laplace_adapter_validate_rule_artifact(&artifact) == LAPLACE_ADAPTER_ERR_INVALID_FORMAT);
 
     return 0;
 }
-
-/* ====================================================================
- * Test: rule artifact - invalid term kind
- * ==================================================================== */
 
 static int test_adapter_rule_import_invalid_term(void) {
     laplace_adapter_rule_artifact_t artifact;
@@ -282,10 +232,6 @@ static int test_adapter_rule_import_invalid_term(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: rule artifact - variable overflow (exceeds uint16_t)
- * ==================================================================== */
-
 static int test_adapter_rule_import_variable_overflow(void) {
     laplace_adapter_rule_artifact_t artifact;
     memset(&artifact, 0, sizeof(artifact));
@@ -294,7 +240,6 @@ static int test_adapter_rule_import_variable_overflow(void) {
     artifact.head.predicate_id = 1;
     artifact.head.arity = 1;
 
-    /* Variable value exceeding uint16_t range. */
     artifact.head.terms[0] = (laplace_adapter_term_t){
         .kind = LAPLACE_EXACT_TERM_VARIABLE,
         .value = (uint32_t)UINT16_MAX + 1u
@@ -302,7 +247,6 @@ static int test_adapter_rule_import_variable_overflow(void) {
     LAPLACE_TEST_ASSERT(
         laplace_adapter_validate_rule_artifact(&artifact) == LAPLACE_ADAPTER_ERR_INVALID_FORMAT);
 
-    /* Variable value 0 is LAPLACE_EXACT_VAR_ID_INVALID. */
     artifact.head.terms[0] = (laplace_adapter_term_t){
         .kind = LAPLACE_EXACT_TERM_VARIABLE,
         .value = 0
@@ -313,15 +257,10 @@ static int test_adapter_rule_import_variable_overflow(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: rule artifact - undeclared predicate rejection (kernel validation)
- * ==================================================================== */
-
 static int test_adapter_rule_import_undeclared_predicate(void) {
     test_adapter_fixture_t f;
     LAPLACE_TEST_ASSERT(adapter_fixture_init(&f) == 0);
 
-    /* Do NOT register any predicates. */
     laplace_adapter_rule_artifact_t artifact;
     memset(&artifact, 0, sizeof(artifact));
     artifact.abi_version = LAPLACE_ADAPTER_ABI_VERSION;
@@ -348,10 +287,6 @@ static int test_adapter_rule_import_undeclared_predicate(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: HV header - valid
- * ==================================================================== */
-
 static int test_adapter_hv_validate_valid(void) {
     laplace_adapter_hv_header_t header;
     memset(&header, 0, sizeof(header));
@@ -367,10 +302,6 @@ static int test_adapter_hv_validate_valid(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: HV header - wrong version
- * ==================================================================== */
-
 static int test_adapter_hv_validate_wrong_version(void) {
     laplace_adapter_hv_header_t header;
     memset(&header, 0, sizeof(header));
@@ -383,10 +314,6 @@ static int test_adapter_hv_validate_wrong_version(void) {
 
     return 0;
 }
-
-/* ====================================================================
- * Test: HV header - wrong dimension
- * ==================================================================== */
 
 static int test_adapter_hv_validate_wrong_dimension(void) {
     laplace_adapter_hv_header_t header;
@@ -401,10 +328,6 @@ static int test_adapter_hv_validate_wrong_dimension(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: HV ingest - valid payload
- * ==================================================================== */
-
 static int test_adapter_hv_ingest(void) {
     laplace_adapter_hv_header_t header;
     memset(&header, 0, sizeof(header));
@@ -412,7 +335,6 @@ static int test_adapter_hv_ingest(void) {
     header.hv_dimension = LAPLACE_HV_DIM;
     header.hv_words     = LAPLACE_HV_WORDS;
 
-    /* Create a test payload with known pattern. */
     static uint64_t words[LAPLACE_HV_WORDS];
     for (uint32_t i = 0; i < LAPLACE_HV_WORDS; ++i) {
         words[i] = (uint64_t)i * 0x0101010101010101ULL;
@@ -424,17 +346,12 @@ static int test_adapter_hv_ingest(void) {
     LAPLACE_TEST_ASSERT(
         laplace_adapter_hv_ingest(&header, words, &hv) == LAPLACE_ADAPTER_OK);
 
-    /* Verify words were copied correctly. */
     for (uint32_t i = 0; i < LAPLACE_HV_WORDS; ++i) {
         LAPLACE_TEST_ASSERT(hv.words[i] == words[i]);
     }
 
     return 0;
 }
-
-/* ====================================================================
- * Test: HV ingest - null rejection
- * ==================================================================== */
 
 static int test_adapter_hv_ingest_null(void) {
     laplace_adapter_hv_header_t header;
@@ -452,10 +369,6 @@ static int test_adapter_hv_ingest_null(void) {
 
     return 0;
 }
-
-/* ====================================================================
- * Test: fact injection - valid
- * ==================================================================== */
 
 static int test_adapter_fact_inject_valid(void) {
     test_adapter_fixture_t f;
@@ -491,10 +404,6 @@ static int test_adapter_fact_inject_valid(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: fact injection - duplicate detection
- * ==================================================================== */
-
 static int test_adapter_fact_inject_duplicate(void) {
     test_adapter_fixture_t f;
     LAPLACE_TEST_ASSERT(adapter_fixture_init(&f) == 0);
@@ -514,13 +423,11 @@ static int test_adapter_fact_inject_duplicate(void) {
     req.args[0].id         = c.id;
     req.args[0].generation = c.generation;
 
-    /* First injection — should succeed. */
     laplace_adapter_fact_response_t resp1;
     LAPLACE_TEST_ASSERT(
         laplace_adapter_inject_fact(&f.store, &req, &resp1) == LAPLACE_ADAPTER_OK);
     LAPLACE_TEST_ASSERT(resp1.inserted == true);
 
-    /* Second injection of the same fact — duplicate. */
     req.correlation_id = 200;
     laplace_adapter_fact_response_t resp2;
     LAPLACE_TEST_ASSERT(
@@ -532,15 +439,10 @@ static int test_adapter_fact_inject_duplicate(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: fact injection - invalid predicate
- * ==================================================================== */
-
 static int test_adapter_fact_inject_invalid_predicate(void) {
     test_adapter_fixture_t f;
     LAPLACE_TEST_ASSERT(adapter_fixture_init(&f) == 0);
 
-    /* Do NOT register any predicates. */
     laplace_adapter_fact_request_t req;
     memset(&req, 0, sizeof(req));
     req.abi_version  = LAPLACE_ADAPTER_ABI_VERSION;
@@ -556,10 +458,6 @@ static int test_adapter_fact_inject_invalid_predicate(void) {
 
     return 0;
 }
-
-/* ====================================================================
- * Test: fact injection - arity mismatch
- * ==================================================================== */
 
 static int test_adapter_fact_inject_arity_mismatch(void) {
     test_adapter_fixture_t f;
@@ -583,10 +481,6 @@ static int test_adapter_fact_inject_arity_mismatch(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: fact injection - invalid entity reference
- * ==================================================================== */
-
 static int test_adapter_fact_inject_invalid_entity(void) {
     test_adapter_fixture_t f;
     LAPLACE_TEST_ASSERT(adapter_fixture_init(&f) == 0);
@@ -599,7 +493,6 @@ static int test_adapter_fact_inject_invalid_entity(void) {
     req.abi_version  = LAPLACE_ADAPTER_ABI_VERSION;
     req.predicate_id = PRED;
     req.arg_count    = 1;
-    /* Bogus entity reference. */
     req.args[0].id         = 9999;
     req.args[0].generation = 9999;
 
@@ -611,10 +504,6 @@ static int test_adapter_fact_inject_invalid_entity(void) {
 
     return 0;
 }
-
-/* ====================================================================
- * Test: fact injection - invalid version
- * ==================================================================== */
 
 static int test_adapter_fact_inject_invalid_version(void) {
     test_adapter_fixture_t f;
@@ -633,10 +522,6 @@ static int test_adapter_fact_inject_invalid_version(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: fact injection - batch
- * ==================================================================== */
-
 static int test_adapter_fact_inject_batch(void) {
     test_adapter_fixture_t f;
     LAPLACE_TEST_ASSERT(adapter_fixture_init(&f) == 0);
@@ -644,13 +529,11 @@ static int test_adapter_fact_inject_batch(void) {
     const laplace_predicate_id_t PRED = 1;
     LAPLACE_TEST_ASSERT(register_unary_predicate(&f, PRED) == 0);
 
-    /* Allocate 3 constants. */
     laplace_entity_handle_t entities[3];
     for (int i = 0; i < 3; ++i) {
         LAPLACE_TEST_ASSERT(alloc_constant(&f, &entities[i]) == 0);
     }
 
-    /* Create batch of 3 fact requests. */
     laplace_adapter_fact_request_t reqs[3];
     memset(reqs, 0, sizeof(reqs));
 
@@ -678,10 +561,6 @@ static int test_adapter_fact_inject_batch(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: fact injection - batch overflow
- * ==================================================================== */
-
 static int test_adapter_fact_inject_batch_overflow(void) {
     test_adapter_fixture_t f;
     LAPLACE_TEST_ASSERT(adapter_fixture_init(&f) == 0);
@@ -689,7 +568,6 @@ static int test_adapter_fact_inject_batch_overflow(void) {
     laplace_adapter_fact_request_t reqs[1];
     laplace_adapter_fact_response_t resps[1];
 
-    /* Count exceeds batch max. */
     const laplace_adapter_status_t s = laplace_adapter_inject_facts_batch(
         &f.store, reqs, LAPLACE_ADAPTER_FACT_BATCH_MAX + 1, resps);
 
@@ -697,10 +575,6 @@ static int test_adapter_fact_inject_batch_overflow(void) {
 
     return 0;
 }
-
-/* ====================================================================
- * Test: verifier - fact exists (found)
- * ==================================================================== */
 
 static int test_adapter_verify_fact_exists_found(void) {
     test_adapter_fixture_t f;
@@ -712,7 +586,6 @@ static int test_adapter_verify_fact_exists_found(void) {
     laplace_entity_handle_t c;
     LAPLACE_TEST_ASSERT(alloc_constant(&f, &c) == 0);
 
-    /* Inject a fact via the adapter. */
     laplace_adapter_fact_request_t freq;
     memset(&freq, 0, sizeof(freq));
     freq.abi_version     = LAPLACE_ADAPTER_ABI_VERSION;
@@ -726,7 +599,6 @@ static int test_adapter_verify_fact_exists_found(void) {
         laplace_adapter_inject_fact(&f.store, &freq, &fresp) == LAPLACE_ADAPTER_OK);
     LAPLACE_TEST_ASSERT(fresp.inserted == true);
 
-    /* Now verify it exists. */
     laplace_adapter_verify_fact_query_t vq;
     memset(&vq, 0, sizeof(vq));
     vq.abi_version     = LAPLACE_ADAPTER_ABI_VERSION;
@@ -747,10 +619,6 @@ static int test_adapter_verify_fact_exists_found(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: verifier - fact exists (not found)
- * ==================================================================== */
-
 static int test_adapter_verify_fact_exists_not_found(void) {
     test_adapter_fixture_t f;
     LAPLACE_TEST_ASSERT(adapter_fixture_init(&f) == 0);
@@ -761,7 +629,6 @@ static int test_adapter_verify_fact_exists_not_found(void) {
     laplace_entity_handle_t c;
     LAPLACE_TEST_ASSERT(alloc_constant(&f, &c) == 0);
 
-    /* Query for a fact that was never asserted. */
     laplace_adapter_verify_fact_query_t vq;
     memset(&vq, 0, sizeof(vq));
     vq.abi_version     = LAPLACE_ADAPTER_ABI_VERSION;
@@ -780,10 +647,6 @@ static int test_adapter_verify_fact_exists_not_found(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: verifier - provenance query
- * ==================================================================== */
-
 static int test_adapter_verify_provenance(void) {
     test_adapter_fixture_t f;
     LAPLACE_TEST_ASSERT(adapter_fixture_init(&f) == 0);
@@ -794,7 +657,6 @@ static int test_adapter_verify_provenance(void) {
     laplace_entity_handle_t c;
     LAPLACE_TEST_ASSERT(alloc_constant(&f, &c) == 0);
 
-    /* Inject a fact to get a provenance record. */
     laplace_adapter_fact_request_t freq;
     memset(&freq, 0, sizeof(freq));
     freq.abi_version     = LAPLACE_ADAPTER_ABI_VERSION;
@@ -808,7 +670,6 @@ static int test_adapter_verify_provenance(void) {
         laplace_adapter_inject_fact(&f.store, &freq, &fresp) == LAPLACE_ADAPTER_OK);
     LAPLACE_TEST_ASSERT(fresp.inserted == true);
 
-    /* Query the provenance. */
     laplace_adapter_verify_provenance_query_t pq;
     memset(&pq, 0, sizeof(pq));
     pq.abi_version     = LAPLACE_ADAPTER_ABI_VERSION;
@@ -827,10 +688,6 @@ static int test_adapter_verify_provenance(void) {
 
     return 0;
 }
-
-/* ====================================================================
- * Test: verifier - provenance not found
- * ==================================================================== */
 
 static int test_adapter_verify_provenance_not_found(void) {
     test_adapter_fixture_t f;
@@ -851,10 +708,6 @@ static int test_adapter_verify_provenance_not_found(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: verifier - rule status query
- * ==================================================================== */
-
 static int test_adapter_verify_rule(void) {
     test_adapter_fixture_t f;
     LAPLACE_TEST_ASSERT(adapter_fixture_init(&f) == 0);
@@ -864,7 +717,6 @@ static int test_adapter_verify_rule(void) {
     LAPLACE_TEST_ASSERT(register_unary_predicate(&f, P) == 0);
     LAPLACE_TEST_ASSERT(register_unary_predicate(&f, Q) == 0);
 
-    /* Import a rule via the adapter: Q(X) :- P(X). */
     laplace_adapter_rule_artifact_t artifact;
     memset(&artifact, 0, sizeof(artifact));
     artifact.abi_version = LAPLACE_ADAPTER_ABI_VERSION;
@@ -882,7 +734,6 @@ static int test_adapter_verify_rule(void) {
     LAPLACE_TEST_ASSERT(
         laplace_adapter_import_rule(&f.store, &artifact, &import_result) == LAPLACE_ADAPTER_OK);
 
-    /* Query the rule via the verifier. */
     laplace_adapter_verify_rule_query_t rq;
     memset(&rq, 0, sizeof(rq));
     rq.abi_version    = LAPLACE_ADAPTER_ABI_VERSION;
@@ -903,10 +754,6 @@ static int test_adapter_verify_rule(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: verifier - rule not found
- * ==================================================================== */
-
 static int test_adapter_verify_rule_not_found(void) {
     test_adapter_fixture_t f;
     LAPLACE_TEST_ASSERT(adapter_fixture_init(&f) == 0);
@@ -925,10 +772,6 @@ static int test_adapter_verify_rule_not_found(void) {
 
     return 0;
 }
-
-/* ====================================================================
- * Test: verifier - invalid version
- * ==================================================================== */
 
 static int test_adapter_verify_invalid_version(void) {
     test_adapter_fixture_t f;
@@ -961,22 +804,10 @@ static int test_adapter_verify_invalid_version(void) {
     return 0;
 }
 
-/* ====================================================================
- * Test: no semantic bypass
- *
- * Verifies that adapter-injected rules and facts still pass through
- * full kernel validation — the adapter cannot bypass exact semantics.
- * ==================================================================== */
-
 static int test_adapter_no_semantic_bypass(void) {
     test_adapter_fixture_t f;
     LAPLACE_TEST_ASSERT(adapter_fixture_init(&f) == 0);
 
-    /*
-     * Attempt 1: Import a rule referencing undeclared predicates.
-     * The kernel's exact validation must reject it even though the
-     * adapter-level format is valid.
-     */
     laplace_adapter_rule_artifact_t artifact;
     memset(&artifact, 0, sizeof(artifact));
     artifact.abi_version = LAPLACE_ADAPTER_ABI_VERSION;
@@ -995,10 +826,6 @@ static int test_adapter_no_semantic_bypass(void) {
         laplace_adapter_import_rule(&f.store, &artifact, &rresult) ==
         LAPLACE_ADAPTER_ERR_VALIDATION_FAILED);
 
-    /*
-     * Attempt 2: Inject a fact with a non-existent entity.
-     * The adapter's entity validation must reject it.
-     */
     const laplace_predicate_id_t PRED = 1;
     LAPLACE_TEST_ASSERT(register_unary_predicate(&f, PRED) == 0);
 
@@ -1017,13 +844,6 @@ static int test_adapter_no_semantic_bypass(void) {
 
     return 0;
 }
-
-/* ====================================================================
- * Test: struct size stability
- *
- * Verifies that all adapter artifact struct sizes match expectations.
- * This acts as a compile-time + runtime ABI stability check.
- * ==================================================================== */
 
 static int test_adapter_format_stability(void) {
     LAPLACE_TEST_ASSERT(sizeof(laplace_adapter_capability_t) == 64);
@@ -1045,10 +865,6 @@ static int test_adapter_format_stability(void) {
 
     return 0;
 }
-
-/* ====================================================================
- * Test entry point
- * ==================================================================== */
 
 int laplace_test_adapter(void) {
     typedef int (*subtest_fn)(void);

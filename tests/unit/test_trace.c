@@ -7,10 +7,6 @@
 #include "laplace/trace.h"
 #include "test_harness.h"
 
-/*
- * Arena large enough for trace buffer (4096 * 64 bytes = 256 KiB)
- * plus alignment overhead.
- */
 #define TEST_ARENA_SIZE (512u * 1024u)
 
 static laplace_trace_record_t make_record(laplace_trace_kind_t kind,
@@ -107,7 +103,6 @@ static int test_trace_sequence_monotonicity(void) {
 
     LAPLACE_TEST_ASSERT(laplace_trace_count(&buf) == 128u);
 
-    /* Verify records are retrievable in order */
     for (uint32_t i = 0u; i < 128u; ++i) {
         const laplace_trace_record_t* got = laplace_trace_get(&buf, i);
         LAPLACE_TEST_ASSERT(got != NULL);
@@ -124,10 +119,6 @@ static int test_trace_overflow(void) {
     laplace_trace_buffer_t buf;
     laplace_trace_buffer_init(&buf, &arena);
 
-    /*
-     * Fill the buffer completely.
-     * Capacity is LAPLACE_TRACE_BUFFER_CAPACITY (4096).
-     */
     for (uint32_t i = 0u; i < LAPLACE_TRACE_BUFFER_CAPACITY; ++i) {
         laplace_trace_record_t rec = make_record(
             LAPLACE_TRACE_KIND_FACT_DERIVED,
@@ -138,22 +129,15 @@ static int test_trace_overflow(void) {
     LAPLACE_TEST_ASSERT(laplace_trace_count(&buf) == LAPLACE_TRACE_BUFFER_CAPACITY);
     LAPLACE_TEST_ASSERT(laplace_trace_overflow_count(&buf) == 0u);
 
-    /* One more emission triggers overflow — this first overflow emits
-       an OVERFLOW_MARKER internally, then overwrites the oldest record.
-       So we lose 2 original records (one replaced by marker, one replaced by
-       the new record). */
     laplace_trace_record_t extra = make_record(
         LAPLACE_TRACE_KIND_BRANCH_CREATE,
         LAPLACE_TRACE_SUBSYSTEM_BRANCH,
         9999u);
     laplace_trace_emit(&buf, &extra);
 
-    /* Count stays at capacity */
     LAPLACE_TEST_ASSERT(laplace_trace_count(&buf) == LAPLACE_TRACE_BUFFER_CAPACITY);
-    /* Overflow counter reflects lost records */
     LAPLACE_TEST_ASSERT(laplace_trace_overflow_count(&buf) > 0u);
 
-    /* Newest record should be the one we just emitted */
     const laplace_trace_record_t* newest = laplace_trace_get(&buf,
         laplace_trace_count(&buf) - 1u);
     LAPLACE_TEST_ASSERT(newest != NULL);
@@ -171,7 +155,6 @@ static int test_trace_reset(void) {
     laplace_trace_buffer_t buf;
     laplace_trace_buffer_init(&buf, &arena);
 
-    /* Emit some records */
     for (uint32_t i = 0u; i < 10u; ++i) {
         laplace_trace_record_t rec = make_record(
             LAPLACE_TRACE_KIND_RULE_ACCEPTED,
@@ -181,13 +164,11 @@ static int test_trace_reset(void) {
     }
     LAPLACE_TEST_ASSERT(laplace_trace_count(&buf) == 10u);
 
-    /* Reset */
     laplace_trace_buffer_reset(&buf);
     LAPLACE_TEST_ASSERT(laplace_trace_count(&buf) == 0u);
     LAPLACE_TEST_ASSERT(laplace_trace_overflow_count(&buf) == 0u);
     LAPLACE_TEST_ASSERT(laplace_trace_next_sequence(&buf) == 1u);
 
-    /* Can emit after reset */
     laplace_trace_record_t rec = make_record(
         LAPLACE_TRACE_KIND_EPOCH_ADVANCE,
         LAPLACE_TRACE_SUBSYSTEM_BRANCH,
@@ -206,11 +187,9 @@ static int test_trace_get_out_of_range(void) {
     laplace_trace_buffer_t buf;
     laplace_trace_buffer_init(&buf, &arena);
 
-    /* Empty buffer — any index should return NULL */
     LAPLACE_TEST_ASSERT(laplace_trace_get(&buf, 0u) == NULL);
     LAPLACE_TEST_ASSERT(laplace_trace_get(&buf, 100u) == NULL);
 
-    /* Emit 5 records */
     for (uint32_t i = 0u; i < 5u; ++i) {
         laplace_trace_record_t rec = make_record(
             LAPLACE_TRACE_KIND_FACT_ASSERTED,
@@ -219,7 +198,6 @@ static int test_trace_get_out_of_range(void) {
         laplace_trace_emit(&buf, &rec);
     }
 
-    /* Index 0..4 should be valid, 5+ should be NULL */
     LAPLACE_TEST_ASSERT(laplace_trace_get(&buf, 0u) != NULL);
     LAPLACE_TEST_ASSERT(laplace_trace_get(&buf, 4u) != NULL);
     LAPLACE_TEST_ASSERT(laplace_trace_get(&buf, 5u) == NULL);
@@ -256,7 +234,6 @@ static int test_trace_payload_fact(void) {
 }
 
 static int test_trace_record_size(void) {
-    /* Verify the compile-time size assertion at runtime too */
     LAPLACE_TEST_ASSERT(sizeof(laplace_trace_record_t) == 64u);
     return 0;
 }

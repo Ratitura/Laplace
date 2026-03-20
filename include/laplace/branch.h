@@ -46,7 +46,6 @@ typedef struct laplace_branch_system {
     laplace_entity_pool_t*  entity_pool;
     laplace_epoch_id_t      current_epoch;
 
-    /* NULL disables tracing */
     laplace_observe_context_t* observe;
 
     laplace_branch_generation_t* generations;

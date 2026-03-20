@@ -26,7 +26,6 @@ laplace_adapter_status_t laplace_adapter_verify_fact_exists(
         return result->status;
     }
 
-    /* Validate predicate is declared. */
     const laplace_predicate_id_t pred =
         (laplace_predicate_id_t)query->predicate_id;
     if (!laplace_exact_predicate_is_declared(store, pred)) {
@@ -34,7 +33,6 @@ laplace_adapter_status_t laplace_adapter_verify_fact_exists(
         return result->status;
     }
 
-    /* Validate arity matches. */
     const uint8_t declared_arity = laplace_exact_predicate_arity(store, pred);
     if (query->arg_count != declared_arity) {
         result->status = LAPLACE_ADAPTER_ERR_ARITY_MISMATCH;

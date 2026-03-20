@@ -41,12 +41,6 @@ void laplace_trace_buffer_reset(laplace_trace_buffer_t* const buf) {
     buf->overflow_count  = 0u;
     buf->overflow_marked = false;
 
-    /*
-     * Record array is NOT zeroed on reset.
-     * Ring invariants (head, count) already define the valid window.
-     * laplace_trace_get() bounds-checks against count, so stale slots
-     * are never exposed.  This avoids a 256 KiB memset per reset.
-     */
 }
 
 static uint32_t trace_write_slot(laplace_trace_buffer_t* const buf,
@@ -72,11 +66,6 @@ laplace_trace_seq_t laplace_trace_emit(laplace_trace_buffer_t* const buf,
 
     const bool will_overflow = (buf->count >= buf->capacity);
 
-    /*
-     * If this is the first overflow, emit an OVERFLOW_MARKER record
-     * before writing the caller's record.  The marker itself will
-     * overwrite the oldest record.
-     */
     if (will_overflow && !buf->overflow_marked) {
         buf->overflow_marked = true;
 
@@ -113,12 +102,6 @@ const laplace_trace_record_t* laplace_trace_get(const laplace_trace_buffer_t* co
         return NULL;
     }
 
-    /*
-     * Index 0 = oldest available record.
-     * When the buffer is full, the oldest record is at
-     * (head) mod capacity because head points to the next write slot.
-     * When the buffer is not full, the oldest is at slot 0.
-     */
     uint32_t start;
     if (buf->count < buf->capacity) {
         start = 0u;

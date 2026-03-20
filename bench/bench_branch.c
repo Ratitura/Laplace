@@ -135,15 +135,12 @@ static void bench_branch_setup_only(void* const context) {
 static void bench_branch_iso_create(void* const context) {
     bench_branch_ctx_t* const ctx = (bench_branch_ctx_t*)context;
 
-    /* Timed: create + immediate fail to free the slot for reuse */
     laplace_error_t error = LAPLACE_OK;
     const laplace_branch_handle_t branch = laplace_branch_create(&ctx->branches,
                                                                   (laplace_branch_handle_t){0},
                                                                   &error);
     ctx->sink_u32 = (uint32_t)branch.id + (uint32_t)error;
 
-    /* Teardown: fail + reclaim to reset the slot.  No owned facts/entities,
-     * so this is just status flip + generation bump — trivially cheap. */
     (void)laplace_branch_fail(&ctx->branches, branch);
     (void)laplace_branch_advance_epoch(&ctx->branches, NULL);
     (void)laplace_branch_reclaim_closed(&ctx->branches, NULL, NULL);
@@ -152,16 +149,13 @@ static void bench_branch_iso_create(void* const context) {
 static void bench_branch_iso_fail(void* const context) {
     bench_branch_ctx_t* const ctx = (bench_branch_ctx_t*)context;
 
-    /* Pre-op: create branch + assert one fact */
     laplace_exact_fact_row_t row = LAPLACE_EXACT_FACT_ROW_INVALID;
     laplace_entity_handle_t fact_entity = {0};
     const laplace_branch_handle_t branch = bench_branch_create_with_fact(ctx, &row, &fact_entity);
 
-    /* Timed target: fail the branch (retire 1 fact + mark status) */
     (void)laplace_branch_fail(&ctx->branches, branch);
     ctx->sink_u32 = row + (uint32_t)fact_entity.id;
 
-    /* Reclaim to reset the slot for next iteration */
     (void)laplace_branch_advance_epoch(&ctx->branches, NULL);
     (void)laplace_branch_reclaim_closed(&ctx->branches, NULL, NULL);
 }
@@ -169,21 +163,15 @@ static void bench_branch_iso_fail(void* const context) {
 static void bench_branch_iso_commit(void* const context) {
     bench_branch_ctx_t* const ctx = (bench_branch_ctx_t*)context;
 
-    /* Pre-op: create branch + assert one fact */
     laplace_exact_fact_row_t row = LAPLACE_EXACT_FACT_ROW_INVALID;
     laplace_entity_handle_t fact_entity = {0};
     const laplace_branch_handle_t branch = bench_branch_create_with_fact(ctx, &row, &fact_entity);
 
-    /* Timed target: commit the branch (promote 1 fact + dedup check + mark status) */
     uint32_t promoted = 0u;
     uint32_t deduplicated = 0u;
     (void)laplace_branch_commit(&ctx->branches, branch, &promoted, &deduplicated);
     ctx->sink_u32 = promoted + deduplicated + row;
 
-    /* Reclaim to reset the slot for next iteration.
-     * The promoted fact remains in the committed store, which is fine:
-     * subsequent iterations will dedup against it, exercising the dedup path
-     * naturally rather than artificially. */
     (void)laplace_branch_advance_epoch(&ctx->branches, NULL);
     (void)laplace_branch_reclaim_closed(&ctx->branches, NULL, NULL);
 }
@@ -204,7 +192,6 @@ void laplace_bench_branch(void) {
         }
     }
 
-    /* Re-setup for isolated runs (fixture is reused across iterations) */
     bench_branch_setup(&g_bench_branch);
 
     printf("\n  Isolated (pre-initialized fixture, branch-op only):\n");

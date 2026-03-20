@@ -28,7 +28,6 @@ void* laplace_arena_alloc(laplace_arena_t* const arena, const size_t size, const
     const uintptr_t aligned = laplace_align_up_uintptr(current, (uintptr_t)alignment);
     const size_t padding = (size_t)(aligned - current);
 
-    /* check for overflow */
     if (padding > arena->capacity - arena->offset) {
         return NULL;
     }

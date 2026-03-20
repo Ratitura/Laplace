@@ -67,7 +67,6 @@ static int test_bitset_set_clear_all(void) {
     LAPLACE_TEST_ASSERT(laplace_bitset_popcount(&bs) == 100u);
     LAPLACE_TEST_ASSERT(laplace_bitset_any(&bs));
 
-    /* Verify tail bits beyond 100 are NOT set */
     LAPLACE_TEST_ASSERT(laplace_bitset_test(&bs, 99u));
 
     laplace_bitset_clear_all(&bs);
@@ -95,7 +94,6 @@ static int test_bitset_logical_ops(void) {
     laplace_bitset_init(&b, wb, 128, 2);
     laplace_bitset_init(&dst, wd, 128, 2);
 
-    /* a = {0, 10, 64}  b = {10, 64, 100} */
     laplace_bitset_set(&a, 0u);
     laplace_bitset_set(&a, 10u);
     laplace_bitset_set(&a, 64u);
@@ -104,7 +102,6 @@ static int test_bitset_logical_ops(void) {
     laplace_bitset_set(&b, 64u);
     laplace_bitset_set(&b, 100u);
 
-    /* AND -> {10, 64} */
     laplace_bitset_and(&dst, &a, &b);
     LAPLACE_TEST_ASSERT(laplace_bitset_popcount(&dst) == 2u);
     LAPLACE_TEST_ASSERT(laplace_bitset_test(&dst, 10u));
@@ -112,13 +109,11 @@ static int test_bitset_logical_ops(void) {
     LAPLACE_TEST_ASSERT(!laplace_bitset_test(&dst, 0u));
     LAPLACE_TEST_ASSERT(!laplace_bitset_test(&dst, 100u));
 
-    /* OR -> {0, 10, 64, 100} */
     laplace_bitset_or(&dst, &a, &b);
     LAPLACE_TEST_ASSERT(laplace_bitset_popcount(&dst) == 4u);
     LAPLACE_TEST_ASSERT(laplace_bitset_test(&dst, 0u));
     LAPLACE_TEST_ASSERT(laplace_bitset_test(&dst, 100u));
 
-    /* XOR -> {0, 100} */
     laplace_bitset_xor(&dst, &a, &b);
     LAPLACE_TEST_ASSERT(laplace_bitset_popcount(&dst) == 2u);
     LAPLACE_TEST_ASSERT(laplace_bitset_test(&dst, 0u));
@@ -152,7 +147,6 @@ static int test_bitset_iteration(void) {
     laplace_bitset_t bs;
     laplace_bitset_init(&bs, words, 256, 4);
 
-    /* Set bits at: 3, 63, 64, 128, 255 */
     laplace_bitset_set(&bs, 3u);
     laplace_bitset_set(&bs, 63u);
     laplace_bitset_set(&bs, 64u);

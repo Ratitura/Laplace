@@ -44,7 +44,6 @@ static int test_arena_alloc_aligned(void) {
     LAPLACE_TEST_ASSERT(p64 != NULL);
     LAPLACE_TEST_ASSERT(((uintptr_t)p64 & 63u) == 0u);
 
-    /* All pointers within buffer bounds */
     LAPLACE_TEST_ASSERT((uint8_t*)p1 >= buf && (uint8_t*)p1 < buf + sizeof(buf));
     LAPLACE_TEST_ASSERT((uint8_t*)p16 >= buf && (uint8_t*)p16 < buf + sizeof(buf));
     LAPLACE_TEST_ASSERT((uint8_t*)p64 >= buf && (uint8_t*)p64 < buf + sizeof(buf));
@@ -63,7 +62,6 @@ static int test_arena_exhaustion(void) {
     void* p2 = laplace_arena_alloc(&arena, 64, 1);
     LAPLACE_TEST_ASSERT(p2 != NULL);
 
-    /* Arena should now be full */
     void* p3 = laplace_arena_alloc(&arena, 1, 1);
     LAPLACE_TEST_ASSERT(p3 == NULL);
 
@@ -94,10 +92,8 @@ static int test_arena_reset(void) {
     laplace_arena_reset(&arena);
     LAPLACE_TEST_ASSERT(laplace_arena_used(&arena) == 0u);
     LAPLACE_TEST_ASSERT(laplace_arena_remaining(&arena) == sizeof(buf));
-    /* Peak is preserved across reset */
     LAPLACE_TEST_ASSERT(laplace_arena_peak(&arena) == peak_before);
 
-    /* Can allocate again after reset */
     void* p = laplace_arena_alloc(&arena, 128, 1);
     LAPLACE_TEST_ASSERT(p != NULL);
 
@@ -115,7 +111,6 @@ static int test_arena_peak_tracking(void) {
 
     laplace_arena_reset(&arena);
     laplace_arena_alloc(&arena, 50, 1);
-    /* Peak should still be >= 100 (high water mark) */
     LAPLACE_TEST_ASSERT(laplace_arena_peak(&arena) == peak1);
 
     laplace_arena_reset_peak(&arena);
@@ -136,7 +131,6 @@ static int test_arena_sequential(void) {
         LAPLACE_TEST_ASSERT(((uintptr_t)ptrs[i] & 7u) == 0u);
     }
 
-    /* All distinct and non-overlapping */
     for (int i = 1; i < 32; ++i) {
         LAPLACE_TEST_ASSERT((uint8_t*)ptrs[i] >= (uint8_t*)ptrs[i - 1] + 64);
     }

@@ -61,11 +61,6 @@ static bool transport_validate_header_fields(const laplace_transport_mapping_hea
 
 #if LAPLACE_PLATFORM_WINDOWS
 
-/*
- * Convert UTF-8 name to wide-string for Win32 APIs.
- * Returns 0 on success, non-zero on failure.
- * The caller provides a fixed-size wide buffer.
- */
 #define TRANSPORT_WIN32_NAME_MAX 256
 
 static int transport_utf8_to_wide(const char* utf8_name, wchar_t* wide_buf, int wide_buf_count) {
@@ -116,7 +111,6 @@ laplace_error_t laplace_transport_create(laplace_transport_mapping_t* out_mappin
         return LAPLACE_ERR_INTERNAL;
     }
 
-    /* Zero entire region first */
     memset(view, 0, total_size);
 
     out_mapping->view           = view;
@@ -206,9 +200,6 @@ void laplace_transport_close(laplace_transport_mapping_t* mapping) {
 
 #else /* !LAPLACE_PLATFORM_WINDOWS */
 
-/*
- * Non-Windows stub: returns error.  POSIX / FPGA support is deferred.
- */
 laplace_error_t laplace_transport_create(laplace_transport_mapping_t* out_mapping,
                                           const char* name) {
     (void)out_mapping;

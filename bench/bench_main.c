@@ -13,6 +13,12 @@ void laplace_bench_branch(void);
 void laplace_bench_transport(void);
 void laplace_bench_observe(void);
 void laplace_bench_adapter(void);
+void laplace_bench_derive(void);
+void laplace_bench_proof(void);
+void laplace_bench_proof_verify(void);
+void laplace_bench_proof_search(void);
+void laplace_bench_graph_profile(void);
+void laplace_bench_graph_import(void);
 
 typedef struct laplace_bench_state {
     volatile uint64_t sink_u64;
@@ -58,7 +64,6 @@ int main(void) {
         return 1;
     }
 
-    /* Phase 03.1: HV benchmarks with backend-aware output */
     printf("\nProject Laplace HV benchmarks\n");
     printf("  Backend:   %s\n", laplace_hv_backend_name());
     printf("  HV dim:    %u bits (%u words)\n",
@@ -89,6 +94,24 @@ int main(void) {
 
     printf("\nProject Laplace adapter benchmarks\n");
     laplace_bench_adapter();
+
+    printf("\nProject Laplace derive dispatch benchmarks\n");
+    laplace_bench_derive();
+
+    printf("\nProject Laplace proof substrate benchmarks\n");
+    laplace_bench_proof();
+
+    printf("\nProject Laplace proof verifier benchmarks\n");
+    laplace_bench_proof_verify();
+
+    printf("\nProject Laplace proof search benchmarks\n");
+    laplace_bench_proof_search();
+
+    printf("\nProject Laplace graph profile benchmarks\n");
+    laplace_bench_graph_profile();
+
+    printf("\nProject Laplace graph import benchmarks\n");
+    laplace_bench_graph_import();
 
     return 0;
 }

@@ -13,23 +13,6 @@
 extern "C" {
 #endif
 
-/*
- * Entity pool: SoA storage for entity metadata.
- *
- * Design:
- *  - Fixed-capacity, allocated from an arena (no hot-path heap).
- *  - SoA arrays: generations[], states[], free_stack[].
- *  - Free-list is an index stack (LIFO) stored as a uint32_t array.
- *    No linked list. No pointer chasing.
- *  - Entity index 0 is reserved as invalid (LAPLACE_ENTITY_ID_INVALID).
- *    The pool maps indices 1..capacity (inclusive) to usable slots 0..capacity-1.
- *  - Generation starts at 1 for each slot. Generation 0 is invalid.
- *  - Recycling a slot increments its generation.
- *
- * Thread safety:
- *  - Not provided. Intended for shard-local usage.
- */
-
 typedef struct laplace_entity_handle {
     laplace_entity_id_t  id;
     laplace_generation_t generation;
@@ -86,68 +69,27 @@ typedef struct laplace_entity_pool {
     uint32_t                 alive_count;   /* entities currently not FREE or RETIRED */
 } laplace_entity_pool_t;
 
-/*
- * Initialize an entity pool, allocating SoA arrays from the given arena.
- * capacity must be > 0.
- * All slots start as FREE with generation = 1.
- * Returns LAPLACE_OK on success, LAPLACE_ERR_CAPACITY_EXHAUSTED if arena is too small.
- */
 laplace_error_t laplace_entity_pool_init(laplace_entity_pool_t* pool, laplace_arena_t* arena, uint32_t capacity);
 
-/*
- * Allocate a new entity from the pool.
- * Returns a handle with a valid ID and current generation.
- * On failure (pool exhausted), handle.id == LAPLACE_ENTITY_ID_INVALID.
- * The new entity is placed in PENDING state.
- */
 laplace_entity_handle_t laplace_entity_pool_alloc(laplace_entity_pool_t* pool);
 
-/*
- * Release an entity back to the pool.
- * The entity must match the expected generation (stale-handle safety).
- * The entity transitions through DEAD -> RETIRED -> FREE and its generation is bumped.
- * Returns LAPLACE_OK on success.
- */
 laplace_error_t laplace_entity_pool_free(laplace_entity_pool_t* pool, laplace_entity_handle_t handle);
 
-/*
- * Check if a handle is currently alive (state is not FREE or RETIRED)
- * and matches the current generation.
- */
 bool laplace_entity_pool_is_alive(const laplace_entity_pool_t* pool, laplace_entity_handle_t handle);
 
-/*
- * Get the current state of an entity by handle.
- * Returns LAPLACE_STATE_FREE if the handle is invalid or stale.
- */
 laplace_entity_state_t laplace_entity_pool_get_state(const laplace_entity_pool_t* pool, laplace_entity_handle_t handle);
 
-/*
- * Transition an entity to a new state.
- * Validates both generation and transition legality.
- */
 laplace_error_t laplace_entity_pool_set_state(laplace_entity_pool_t* pool,
                                                laplace_entity_handle_t handle,
                                                laplace_entity_state_t new_state);
 
-/*
- * Read exact symbolic metadata for an entity.
- * Invalid or stale handles return a zeroed metadata record with role NONE.
- */
 laplace_entity_exact_meta_t laplace_entity_pool_get_exact_meta(const laplace_entity_pool_t* pool,
                                                                 laplace_entity_handle_t handle);
 
-/*
- * Set exact symbolic metadata for a live entity.
- * Metadata changes are generation-safe and deterministic.
- */
 laplace_error_t laplace_entity_pool_set_exact_meta(laplace_entity_pool_t* pool,
                                                     laplace_entity_handle_t handle,
                                                     const laplace_entity_exact_meta_t* meta);
 
-/*
- * Clear exact symbolic metadata for a live entity.
- */
 laplace_error_t laplace_entity_pool_clear_exact_meta(laplace_entity_pool_t* pool,
                                                       laplace_entity_handle_t handle);
 
@@ -171,10 +113,6 @@ laplace_error_t laplace_entity_pool_mark_retired(laplace_entity_pool_t* pool,
 laplace_error_t laplace_entity_pool_reclaim_retired(laplace_entity_pool_t* pool,
                                                      laplace_entity_handle_t handle);
 
-/*
- * Get the current generation for a slot index (0-based).
- * Returns LAPLACE_GENERATION_INVALID if out of range.
- */
 laplace_generation_t laplace_entity_pool_generation(const laplace_entity_pool_t* pool, uint32_t slot_index);
 
 #ifdef __cplusplus

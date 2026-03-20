@@ -8,8 +8,6 @@
 #include "laplace/types.h"
 #include "test_harness.h"
 
-/* Per entity overhead in the arena: gen(4) + state(4 aligned) + stack(4) = ~12 bytes.
- * 64 bytes per entity is generous with alignment padding. */
 #define TEST_SHARD_CAPACITY 8u
 #define TEST_SHARD_BUFSIZE  (TEST_SHARD_CAPACITY * 64u)
 
@@ -38,7 +36,6 @@ static int test_shard_pool_init_invalid(void) {
 
 static int test_shard_pool_buffer_too_small(void) {
     laplace_shard_pool_t sp;
-    /* 4 bytes is far too small for even 1 entity */
     uint8_t tiny[4];
     LAPLACE_TEST_ASSERT(laplace_shard_pool_init(&sp, 0u, tiny, sizeof(tiny), 1u) == LAPLACE_ERR_CAPACITY_EXHAUSTED);
     return 0;
@@ -70,11 +67,9 @@ static int test_shard_pool_exhaustion(void) {
         LAPLACE_TEST_ASSERT(handles[i].id != LAPLACE_ENTITY_ID_INVALID);
     }
 
-    /* Pool exhausted */
     laplace_entity_handle_t fail = laplace_shard_pool_alloc(&sp);
     LAPLACE_TEST_ASSERT(fail.id == LAPLACE_ENTITY_ID_INVALID);
 
-    /* Free one, alloc again */
     LAPLACE_TEST_ASSERT(laplace_shard_pool_free(&sp, handles[0]) == LAPLACE_OK);
     laplace_entity_handle_t recycled = laplace_shard_pool_alloc(&sp);
     LAPLACE_TEST_ASSERT(recycled.id == handles[0].id);
@@ -87,16 +82,13 @@ static int test_shard_pool_reset(void) {
     laplace_shard_pool_t sp;
     LAPLACE_TEST_ASSERT(laplace_shard_pool_init(&sp, 3u, g_shard_buf, sizeof(g_shard_buf), TEST_SHARD_CAPACITY) == LAPLACE_OK);
 
-    /* Alloc a couple entities */
     (void)laplace_shard_pool_alloc(&sp);
     (void)laplace_shard_pool_alloc(&sp);
     LAPLACE_TEST_ASSERT(laplace_shard_pool_alive_count(&sp) == 2u);
 
-    /* Reset invalidates everything */
     laplace_shard_pool_reset(&sp);
     LAPLACE_TEST_ASSERT(sp.entity_capacity == 0u);
 
-    /* Must re-init after reset */
     LAPLACE_TEST_ASSERT(laplace_shard_pool_init(&sp, 3u, g_shard_buf, sizeof(g_shard_buf), TEST_SHARD_CAPACITY) == LAPLACE_OK);
     LAPLACE_TEST_ASSERT(laplace_shard_pool_alive_count(&sp) == 0u);
     LAPLACE_TEST_ASSERT(laplace_shard_pool_free_count(&sp) == TEST_SHARD_CAPACITY);

@@ -21,7 +21,6 @@ typedef struct bench_transport_env {
     laplace_exec_context_t       exec_ctx;
     laplace_transport_mapping_t  mapping;
     laplace_transport_context_t  ctx;
-    /* Pre-built records */
     laplace_transport_command_record_t ping_cmd;
 } bench_transport_env_t;
 
@@ -39,7 +38,6 @@ static int bench_transport_env_init(bench_transport_env_t* env) {
     if (laplace_transport_ctx_init(&env->ctx, &env->mapping, &env->store,
                                     &env->exec_ctx, &env->entity_pool) != LAPLACE_OK) return 1;
 
-    /* Register predicate for assert-fact benchmark */
     {
         laplace_exact_predicate_desc_t desc;
         memset(&desc, 0, sizeof(desc));
@@ -49,10 +47,8 @@ static int bench_transport_env_init(bench_transport_env_t* env) {
         (void)laplace_exact_register_predicate(&env->store, 1u, &desc);
     }
 
-    /* Build trigger index */
     (void)laplace_exec_build_trigger_index(&env->exec_ctx);
 
-    /* Pre-build PING command */
     memset(&env->ping_cmd, 0, sizeof(env->ping_cmd));
     env->ping_cmd.kind           = (uint32_t)LAPLACE_TRANSPORT_CMD_PING;
     env->ping_cmd.correlation_id = 1u;
@@ -68,7 +64,6 @@ static void bench_transport_env_cleanup(bench_transport_env_t* env) {
 static void bench_ingress_enqueue(void* context) {
     bench_transport_env_t* env = (bench_transport_env_t*)context;
 
-    /* Enqueue and immediately dequeue to keep ring empty for next iteration */
     (void)laplace_transport_ingress_enqueue(&env->mapping, &env->ping_cmd);
 
     laplace_transport_command_record_t out;
@@ -95,13 +90,10 @@ static void bench_egress_round(void* context) {
 static void bench_ping_roundtrip(void* context) {
     bench_transport_env_t* env = (bench_transport_env_t*)context;
 
-    /* Enqueue PING */
     (void)laplace_transport_ingress_enqueue(&env->mapping, &env->ping_cmd);
 
-    /* Process */
     (void)laplace_transport_process_one(&env->ctx);
 
-    /* Dequeue ACK */
     laplace_transport_event_record_t evt;
     (void)laplace_transport_egress_dequeue(&env->mapping, &evt);
     g_bench_sink = evt.correlation_id;

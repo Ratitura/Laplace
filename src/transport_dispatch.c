@@ -212,8 +212,6 @@ static void transport_handle_assert_fact(laplace_transport_context_t* ctx,
         return;
     }
 
-    /* Convert raw entity IDs to handles.
-     * For simplicity, we look up current generation for each arg entity. */
     laplace_entity_handle_t arg_handles[LAPLACE_EXACT_MAX_ARITY];
     for (uint8_t i = 0u; i < payload.arg_count; ++i) {
         const uint32_t eid = payload.args[i];
@@ -227,7 +225,6 @@ static void transport_handle_assert_fact(laplace_transport_context_t* ctx,
         arg_handles[i].generation = laplace_entity_pool_generation(ctx->entity_pool, slot);
     }
 
-    /* Insert provenance for asserted fact */
     laplace_exact_provenance_desc_t prov_desc;
     memset(&prov_desc, 0, sizeof(prov_desc));
     prov_desc.kind = LAPLACE_EXACT_PROVENANCE_ASSERTED;
@@ -309,7 +306,6 @@ static void transport_handle_add_rule(laplace_transport_context_t* ctx,
         return;
     }
 
-    /* Convert to exact rule desc */
     laplace_exact_literal_t head;
     transport_convert_literal(&head, &rule_payload.head);
 
@@ -397,7 +393,6 @@ static void transport_handle_exec_step(laplace_transport_context_t* ctx,
 
 static void transport_handle_exec_run(laplace_transport_context_t* ctx,
                                        const laplace_transport_command_record_t* cmd) {
-    /* Optionally apply budget overrides from payload */
     if (cmd->payload_size >= (uint32_t)sizeof(laplace_transport_cmd_exec_run_t)) {
         laplace_transport_cmd_exec_run_t run_payload;
         memcpy(&run_payload, cmd->payload, sizeof(run_payload));

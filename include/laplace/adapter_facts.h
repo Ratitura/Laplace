@@ -13,12 +13,6 @@ enum {
     LAPLACE_ADAPTER_FACT_BATCH_MAX = 64u
 };
 
-/* ---------- entity reference (8 bytes) ----------
- *
- * Explicit fixed-width representation of an entity handle for adapter
- * payloads.  Layout-compatible with laplace_entity_handle_t but defined
- * independently for ABI stability.
- */
 typedef struct laplace_adapter_entity_ref {
     uint32_t id;            /* 0 - 3 */
     uint32_t generation;    /* 4 - 7 */
@@ -28,8 +22,6 @@ LAPLACE_STATIC_ASSERT(sizeof(laplace_adapter_entity_ref_t) == 8u,
                        "laplace_adapter_entity_ref_t must be exactly 8 bytes");
 LAPLACE_STATIC_ASSERT(sizeof(laplace_adapter_entity_ref_t) == sizeof(laplace_entity_handle_t),
                        "adapter entity ref must match entity handle size");
-
-/* ---------- fact injection request (80 bytes) ---------- */
 
 typedef struct laplace_adapter_fact_request {
     uint32_t abi_version;       /*  0 -  3 */
@@ -43,8 +35,6 @@ typedef struct laplace_adapter_fact_request {
 LAPLACE_STATIC_ASSERT(sizeof(laplace_adapter_fact_request_t) ==
                        16u + LAPLACE_EXACT_MAX_ARITY * sizeof(laplace_adapter_entity_ref_t),
                        "laplace_adapter_fact_request_t size mismatch");
-
-/* ---------- fact injection response (32 bytes) ---------- */
 
 typedef struct laplace_adapter_fact_response {
     laplace_adapter_status_t status;    /*  0 -  3 */
@@ -60,36 +50,16 @@ typedef struct laplace_adapter_fact_response {
 LAPLACE_STATIC_ASSERT(sizeof(laplace_adapter_fact_response_t) == 32u,
                        "laplace_adapter_fact_response_t must be exactly 32 bytes");
 
-/*
- * Validate a fact injection request against the exact store without
- * performing the injection.  Checks ABI version, predicate declaration,
- * arity match, and entity handle validity.
- */
 laplace_adapter_status_t laplace_adapter_validate_fact_request(
     const laplace_exact_store_t* store,
     const laplace_entity_pool_t* entity_pool,
     const laplace_adapter_fact_request_t* request);
 
-/*
- * Inject a single fact into the committed exact store.
- * Creates ASSERTED provenance, routes through exact assertion/dedup,
- * and fills the response struct.  Duplicate facts are reported as
- * LAPLACE_ADAPTER_OK with inserted=false.
- */
 laplace_adapter_status_t laplace_adapter_inject_fact(
     laplace_exact_store_t* store,
     const laplace_adapter_fact_request_t* request,
     laplace_adapter_fact_response_t* response);
 
-/*
- * Inject a batch of facts into the committed exact store.
- * Each request is processed sequentially (deterministic order).
- * Individual results are written to responses[i].
- * count must be <= LAPLACE_ADAPTER_FACT_BATCH_MAX.
- *
- * Returns LAPLACE_ADAPTER_OK if all facts were processed (some may be
- * duplicates), or an error status if batch-level validation fails.
- */
 laplace_adapter_status_t laplace_adapter_inject_facts_batch(
     laplace_exact_store_t* store,
     const laplace_adapter_fact_request_t* requests,

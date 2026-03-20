@@ -40,13 +40,6 @@ static laplace_entity_handle_t bench_exec_alloc_ready(bench_exec_ctx_t* const ct
     return h;
 }
 
-/*
- * Setup a transitive-closure scenario:
- *   Predicates: edge(2), path(2)
- *   Facts: edge(n0,n1), edge(n1,n2), ..., edge(n_{k-1}, n_k)
- *   Rules: path(X,Y) :- edge(X,Y).
- *          path(X,Y) :- path(X,Z), edge(Z,Y).
- */
 static void bench_exec_setup_tc(bench_exec_ctx_t* const ctx) {
     memset(ctx, 0, sizeof(*ctx));
     (void)laplace_arena_init(&ctx->entity_arena, g_bench_exec_entity_buf, sizeof(g_bench_exec_entity_buf));
@@ -70,13 +63,11 @@ static void bench_exec_setup_tc(bench_exec_ctx_t* const ctx) {
     };
     (void)laplace_exact_insert_provenance(&ctx->store, &prov_desc, &ctx->asserted_prov);
 
-    /* Create nodes and register as constants */
     for (uint32_t i = 0u; i <= BENCH_EXEC_CHAIN_LENGTH; ++i) {
         ctx->nodes[i] = bench_exec_alloc_ready(ctx);
         (void)laplace_exact_register_constant(&ctx->store, ctx->nodes[i], 1u, 0u);
     }
 
-    /* Assert edge facts */
     for (uint32_t i = 0u; i < BENCH_EXEC_CHAIN_LENGTH; ++i) {
         const laplace_entity_handle_t args[2] = {ctx->nodes[i], ctx->nodes[i + 1u]};
         laplace_exact_fact_row_t row = LAPLACE_EXACT_FACT_ROW_INVALID;
@@ -86,7 +77,6 @@ static void bench_exec_setup_tc(bench_exec_ctx_t* const ctx) {
                                          LAPLACE_EXACT_FACT_FLAG_ASSERTED, &row, &fe, &inserted);
     }
 
-    /* Add rules */
     laplace_exact_literal_t b1[1];
     memset(b1, 0, sizeof(b1));
     b1[0].predicate = 1u; b1[0].arity = 2u;
@@ -128,11 +118,9 @@ static void bench_exec_setup_tc(bench_exec_ctx_t* const ctx) {
 static void bench_exec_ready_push_pop(void* const context) {
     bench_exec_ctx_t* const ctx = (bench_exec_ctx_t*)context;
 
-    /* Reset ready state for re-measurement */
     laplace_exec_reset(&ctx->exec);
     (void)laplace_exec_build_trigger_index(&ctx->exec);
 
-    /* Mark all edge facts ready */
     const uint32_t marked = laplace_exec_mark_all_facts_ready(&ctx->exec);
     ctx->sink_u32 = marked;
     ctx->sink_u32 ^= laplace_exec_ready_count(&ctx->exec);
@@ -146,7 +134,6 @@ static void bench_exec_dense_scan(void* const context) {
     laplace_exec_set_mode(&ctx->exec, LAPLACE_EXEC_MODE_DENSE);
     laplace_exec_mark_all_facts_ready(&ctx->exec);
 
-    /* Just do one step to measure scan cost */
     (void)laplace_exec_step(&ctx->exec);
     ctx->sink_u32 = laplace_exec_ready_count(&ctx->exec);
 }
@@ -154,12 +141,10 @@ static void bench_exec_dense_scan(void* const context) {
 static void bench_exec_single_rule_fire(void* const context) {
     bench_exec_ctx_t* const ctx = (bench_exec_ctx_t*)context;
 
-    /* Fresh TC setup each iteration to measure from scratch */
     bench_exec_setup_tc(ctx);
     laplace_exec_set_mode(&ctx->exec, LAPLACE_EXEC_MODE_DENSE);
     laplace_exec_mark_all_facts_ready(&ctx->exec);
 
-    /* One step processes one edge fact and fires the base rule */
     (void)laplace_exec_step(&ctx->exec);
     ctx->sink_u64 = ctx->exec.stats.rules_fired;
 }

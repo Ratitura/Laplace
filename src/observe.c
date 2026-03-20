@@ -4,7 +4,6 @@
 
 #include "laplace/arena.h"
 
-/* Platform timer for latency measurement */
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -148,17 +147,12 @@ laplace_observe_latency_stats_t laplace_observe_get_latency(const laplace_observ
     return ctx->latency[latency_id];
 }
 
-/*
- * Map trace kinds to minimum observability level required for emission.
- */
 static laplace_observe_level_t trace_kind_min_level(const laplace_trace_kind_t kind) {
     switch (kind) {
-        /* Always emitted (even at ERRORS level) */
         case LAPLACE_TRACE_KIND_OVERFLOW_MARKER:
         case LAPLACE_TRACE_KIND_TRANSPORT_ERROR:
             return LAPLACE_OBSERVE_ERRORS;
 
-        /* AUDIT level: derivation-critical events */
         case LAPLACE_TRACE_KIND_FACT_ASSERTED:
         case LAPLACE_TRACE_KIND_FACT_DERIVED:
         case LAPLACE_TRACE_KIND_FACT_DUPLICATE:
@@ -175,7 +169,6 @@ static laplace_observe_level_t trace_kind_min_level(const laplace_trace_kind_t k
         case LAPLACE_TRACE_KIND_COUNTER_SNAPSHOT:
             return LAPLACE_OBSERVE_AUDIT;
 
-        /* DEBUG level: per-step events */
         case LAPLACE_TRACE_KIND_EXEC_STEP:
             return LAPLACE_OBSERVE_DEBUG;
 
@@ -184,9 +177,6 @@ static laplace_observe_level_t trace_kind_min_level(const laplace_trace_kind_t k
     }
 }
 
-/*
- * Map subsystem tag to mask bit.
- */
 static uint32_t subsystem_mask_bit(const laplace_trace_subsystem_t subsystem) {
     switch (subsystem) {
         case LAPLACE_TRACE_SUBSYSTEM_EXACT:     return LAPLACE_OBSERVE_MASK_EXACT;
@@ -525,7 +515,6 @@ void laplace_observe_trace_transport_cmd(laplace_observe_context_t* const ctx,
     if (ctx == NULL) { return; }
     ctx->counters.transport_commands_processed += 1u;
 
-    /* Update replay correlation range */
     laplace_replay_update_transport_correlation(&ctx->replay, correlation_id);
 
     if (!laplace_observe_should_trace(ctx, LAPLACE_TRACE_SUBSYSTEM_TRANSPORT,

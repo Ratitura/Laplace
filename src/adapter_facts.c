@@ -147,12 +147,6 @@ laplace_adapter_status_t laplace_adapter_inject_facts_batch(
         return LAPLACE_ADAPTER_ERR_BATCH_OVERFLOW;
     }
 
-    /*
-     * Process each request sequentially for deterministic behavior.
-     * Individual failures are recorded in each response; the batch
-     * function returns OK if all requests were processed (even if
-     * some resulted in duplicates or individual errors).
-     */
     for (uint32_t i = 0; i < count; ++i) {
         (void)laplace_adapter_inject_fact(store, &requests[i], &responses[i]);
     }

@@ -6,7 +6,6 @@
 #include "laplace/hv.h"
 #include "laplace/version.h"
 
-/* Platform timer for auxiliary wall-clock diagnostics */
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -35,10 +34,8 @@ laplace_error_t laplace_replay_init(laplace_replay_metadata_t* const meta,
 
     memset(meta, 0, sizeof(*meta));
 
-    /* Session identity */
     meta->session_id = session_id;
 
-    /* Build context */
     meta->abi_version    = 1u;  /* LAPLACE_TRANSPORT_ABI_VERSION */
     meta->version_major  = laplace_version_major();
     meta->version_minor  = laplace_version_minor();
@@ -59,16 +56,13 @@ laplace_error_t laplace_replay_init(laplace_replay_metadata_t* const meta,
         meta->backend_name[i] = '\0';
     }
 
-    /* HV configuration */
     meta->hv_dimension = LAPLACE_HV_DIM;
     meta->hv_words     = LAPLACE_HV_WORDS;
 
-    /* Branch/epoch compile-time limits */
     meta->max_branches              = LAPLACE_BRANCH_MAX_BRANCHES;
     meta->branch_max_owned_facts    = LAPLACE_BRANCH_MAX_OWNED_FACTS_PER_BRANCH;
     meta->branch_max_owned_entities = LAPLACE_BRANCH_MAX_OWNED_ENTITIES_PER_BRANCH;
 
-    /* Wall-clock diagnostic (NOT replay truth) */
     meta->wall_start_ns = replay_wall_clock_ns();
 
     meta->is_open   = true;

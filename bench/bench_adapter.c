@@ -28,18 +28,15 @@ typedef struct bench_adapter_ctx {
     laplace_entity_pool_t entity_pool;
     laplace_exact_store_t store;
 
-    /* Pre-built artifacts for benchmarking. */
     laplace_adapter_rule_artifact_t  rule_artifact;
     laplace_adapter_hv_header_t      hv_header;
     uint64_t                          hv_words[LAPLACE_HV_WORDS];
     laplace_adapter_fact_request_t   fact_request;
     laplace_adapter_verify_fact_query_t verify_query;
 
-    /* Entities for fact injection. */
     laplace_entity_handle_t constants[16];
     uint32_t                constant_count;
 
-    /* Sinks to prevent optimization. */
     volatile uint64_t sink_u64;
     volatile uint32_t sink_u32;
 } bench_adapter_ctx_t;
@@ -71,7 +68,6 @@ static int bench_adapter_setup(void) {
         return -1;
     }
 
-    /* Register predicates. */
     const laplace_exact_predicate_desc_t unary_desc = {
         .arity = 1,
         .flags = LAPLACE_EXACT_PREDICATE_FLAG_NONE,
@@ -84,7 +80,6 @@ static int bench_adapter_setup(void) {
         return -1;
     }
 
-    /* Allocate constants. */
     for (uint32_t i = 0; i < 16; ++i) {
         ctx->constants[i] = laplace_entity_pool_alloc(&ctx->entity_pool);
         if (ctx->constants[i].id == LAPLACE_ENTITY_ID_INVALID) { return -1; }
@@ -102,7 +97,6 @@ static int bench_adapter_setup(void) {
     }
     ctx->constant_count = 16;
 
-    /* Pre-build rule artifact: Q(X) :- P(X). */
     memset(&ctx->rule_artifact, 0, sizeof(ctx->rule_artifact));
     ctx->rule_artifact.abi_version = LAPLACE_ADAPTER_ABI_VERSION;
     ctx->rule_artifact.body_count  = 1;
@@ -115,7 +109,6 @@ static int bench_adapter_setup(void) {
     ctx->rule_artifact.body[0].terms[0] = (laplace_adapter_term_t){
         .kind = LAPLACE_EXACT_TERM_VARIABLE, .value = 1};
 
-    /* Pre-build HV header and words. */
     memset(&ctx->hv_header, 0, sizeof(ctx->hv_header));
     ctx->hv_header.abi_version  = LAPLACE_ADAPTER_ABI_VERSION;
     ctx->hv_header.hv_dimension = LAPLACE_HV_DIM;
@@ -124,7 +117,6 @@ static int bench_adapter_setup(void) {
         ctx->hv_words[i] = (uint64_t)i * 0x5555555555555555ULL;
     }
 
-    /* Pre-build fact request. */
     memset(&ctx->fact_request, 0, sizeof(ctx->fact_request));
     ctx->fact_request.abi_version  = LAPLACE_ADAPTER_ABI_VERSION;
     ctx->fact_request.predicate_id = 1;
@@ -132,7 +124,6 @@ static int bench_adapter_setup(void) {
     ctx->fact_request.args[0].id         = ctx->constants[0].id;
     ctx->fact_request.args[0].generation = ctx->constants[0].generation;
 
-    /* Pre-build verify query. */
     memset(&ctx->verify_query, 0, sizeof(ctx->verify_query));
     ctx->verify_query.abi_version  = LAPLACE_ADAPTER_ABI_VERSION;
     ctx->verify_query.predicate_id = 1;
@@ -173,10 +164,6 @@ static void bench_fact_validate(void* const context) {
     ctx->sink_u32 = (uint32_t)s;
 }
 
-/*
- * Benchmark fact injection using a pre-injected (duplicate) fact.
- * This measures the dedup path, which is the steady-state hot path.
- */
 static void bench_fact_inject_dedup(void* const context) {
     bench_adapter_ctx_t* const ctx = (bench_adapter_ctx_t*)context;
     laplace_adapter_fact_response_t resp;
@@ -201,7 +188,6 @@ void laplace_bench_adapter(void) {
         return;
     }
 
-    /* Pre-inject one fact so the dedup bench and verify bench work. */
     {
         laplace_adapter_fact_response_t resp;
         laplace_adapter_inject_fact(&g_bench_ctx.store,

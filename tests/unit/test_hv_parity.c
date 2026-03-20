@@ -1,24 +1,3 @@
-/*
- * Backend parity tests (Phase 03).
- *
- * These tests verify that the active HV backend (scalar or ISPC) produces
- * bit-exact results matching the scalar reference for all first-wave
- * operations: bind, distance, popcount, similarity.
- *
- * When LAPLACE_HV_BACKEND == LAPLACE_HV_BACKEND_ISPC, this file also
- * directly calls the scalar word-level kernels and compares against the
- * ISPC word-level kernels, ensuring no semantic drift.
- *
- * When LAPLACE_HV_BACKEND == LAPLACE_HV_BACKEND_SCALAR, the parity tests
- * still run (comparing scalar-via-dispatch against scalar-direct) to verify
- * that the dispatch layer is transparent.
- *
- * Test strategy:
- *   1. Fixed known-pattern inputs (zeros, ones, single-bit, alternating)
- *   2. Deterministic pseudo-random inputs across multiple seeds
- *   3. Repeated runs for determinism verification
- *   4. Edge cases: empty-ish distance (identical vectors), max distance (complements)
- */
 
 #include <math.h>
 #include <stddef.h>
@@ -28,11 +7,6 @@
 #include "laplace/hv.h"
 #include "test_harness.h"
 
-/*
- * We need direct access to scalar backend kernels for parity comparison.
- * Forward declarations below match the signatures in hv_backend_internal.h.
- * These are always available regardless of backend selection.
- */
 extern void     laplace__hv_bind_words_scalar(uint64_t* restrict dst,
                                                const uint64_t* a,
                                                const uint64_t* b,
@@ -55,22 +29,16 @@ static void hv_fill_alternating(laplace_hv_t* dst, uint64_t pattern) {
     }
 }
 
-/*
- * Compare: scalar word-level bind vs public API bind (which dispatches
- * through the active backend).
- */
 static int test_parity_bind_random(void) {
     for (uint64_t seed = 0u; seed < 20u; ++seed) {
         laplace_hv_t a, b;
         laplace_hv_random(&a, seed * 1000u + 100u);
         laplace_hv_random(&b, seed * 1000u + 200u);
 
-        /* Scalar reference (direct call) */
         laplace_hv_t scalar_result;
         laplace__hv_bind_words_scalar(scalar_result.words,
                                        a.words, b.words, LAPLACE_HV_WORDS);
 
-        /* Active backend (via public API dispatch) */
         laplace_hv_t backend_result;
         laplace_hv_bind(&backend_result, &a, &b);
 
@@ -92,7 +60,6 @@ static int test_parity_bind_zeros(void) {
     laplace_hv_bind(&backend_result, &a, &b);
 
     LAPLACE_TEST_ASSERT(laplace_hv_equal(&scalar_result, &backend_result));
-    /* Both should be zero */
     LAPLACE_TEST_ASSERT(laplace_hv_popcount(&backend_result) == 0u);
     return 0;
 }
@@ -110,7 +77,6 @@ static int test_parity_bind_ones(void) {
     laplace_hv_bind(&backend_result, &a, &b);
 
     LAPLACE_TEST_ASSERT(laplace_hv_equal(&scalar_result, &backend_result));
-    /* ones ^ ones = zeros */
     LAPLACE_TEST_ASSERT(laplace_hv_popcount(&backend_result) == 0u);
     return 0;
 }
@@ -128,7 +94,6 @@ static int test_parity_bind_complement(void) {
     laplace_hv_bind(&backend_result, &a, &b);
 
     LAPLACE_TEST_ASSERT(laplace_hv_equal(&scalar_result, &backend_result));
-    /* 0 ^ 1 = 1 for all bits */
     LAPLACE_TEST_ASSERT(laplace_hv_popcount(&backend_result) == LAPLACE_HV_DIM);
     return 0;
 }
@@ -146,7 +111,6 @@ static int test_parity_bind_alternating(void) {
     laplace_hv_bind(&backend_result, &a, &b);
 
     LAPLACE_TEST_ASSERT(laplace_hv_equal(&scalar_result, &backend_result));
-    /* complementary patterns: XOR = all ones */
     LAPLACE_TEST_ASSERT(laplace_hv_popcount(&backend_result) == LAPLACE_HV_DIM);
     return 0;
 }
@@ -163,7 +127,6 @@ static int test_parity_bind_self(void) {
     laplace_hv_bind(&backend_result, &a, &a);
 
     LAPLACE_TEST_ASSERT(laplace_hv_equal(&scalar_result, &backend_result));
-    /* a ^ a = 0 */
     LAPLACE_TEST_ASSERT(laplace_hv_popcount(&backend_result) == 0u);
     return 0;
 }
@@ -304,17 +267,10 @@ static int test_parity_popcount_alternating(void) {
         hv.words, LAPLACE_HV_WORDS);
     const uint32_t backend_pc = laplace_hv_popcount(&hv);
 
-    /* Each word has 32 set bits.  256 words * 32 = 8192 */
     LAPLACE_TEST_ASSERT(scalar_pc == LAPLACE_HV_DIM / 2u);
     LAPLACE_TEST_ASSERT(backend_pc == LAPLACE_HV_DIM / 2u);
     return 0;
 }
-
-/*
- * Similarity is computed as 1.0 - (distance / DIM).
- * Parity is verified by ensuring the distance component matches between
- * scalar and backend, then verifying the final double value.
- */
 
 static int test_parity_similarity_random(void) {
     for (uint64_t seed = 0u; seed < 20u; ++seed) {
@@ -322,15 +278,12 @@ static int test_parity_similarity_random(void) {
         laplace_hv_random(&a, seed * 4000u + 100u);
         laplace_hv_random(&b, seed * 4000u + 200u);
 
-        /* Scalar distance directly */
         const uint32_t scalar_dist = laplace__hv_xor_popcount_words_scalar(
             a.words, b.words, LAPLACE_HV_WORDS);
         const double scalar_sim = 1.0 - ((double)scalar_dist / (double)LAPLACE_HV_DIM);
 
-        /* Public API similarity (dispatches through backend) */
         const double backend_sim = laplace_hv_similarity(&a, &b);
 
-        /* Must be bit-exact (same IEEE 754 computation) */
         LAPLACE_TEST_ASSERT(scalar_sim == backend_sim);
     }
     return 0;

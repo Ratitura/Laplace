@@ -31,7 +31,6 @@ void laplace_bitset_set_all(laplace_bitset_t* const bs) {
         bs->words[i] = UINT64_MAX;
     }
 
-    /* Handle the tail word: only set valid bit positions */
     const uint32_t tail_bits = bs->bit_count & LAPLACE_BITSET_WORD_MASK;
     if (tail_bits > 0u) {
         bs->words[full_words] = (UINT64_C(1) << tail_bits) - 1u;
@@ -85,7 +84,6 @@ void laplace_bitset_not(laplace_bitset_t* const bs) {
         bs->words[i] = ~bs->words[i];
     }
 
-    /* Mask out invalid bits in the tail word */
     const uint32_t tail_bits = bs->bit_count & LAPLACE_BITSET_WORD_MASK;
     if (tail_bits > 0u && bs->word_count > 0u) {
         bs->words[bs->word_count - 1u] &= (UINT64_C(1) << tail_bits) - 1u;

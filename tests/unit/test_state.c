@@ -6,8 +6,6 @@
 #include "laplace/state.h"
 #include "test_harness.h"
 
-/* ------- state names ------- */
-
 static int test_state_names(void) {
     LAPLACE_TEST_ASSERT(strcmp(laplace_state_name(LAPLACE_STATE_FREE), "FREE") == 0);
     LAPLACE_TEST_ASSERT(strcmp(laplace_state_name(LAPLACE_STATE_PENDING), "PENDING") == 0);
@@ -19,8 +17,6 @@ static int test_state_names(void) {
     LAPLACE_TEST_ASSERT(strcmp(laplace_state_name((laplace_entity_state_t)99), "UNKNOWN") == 0);
     return 0;
 }
-
-/* ------- valid forward transitions ------- */
 
 static int test_state_valid_transitions(void) {
     LAPLACE_TEST_ASSERT(laplace_state_transition_valid(LAPLACE_STATE_FREE, LAPLACE_STATE_PENDING));
@@ -38,32 +34,23 @@ static int test_state_valid_transitions(void) {
     return 0;
 }
 
-/* ------- invalid transitions ------- */
-
 static int test_state_invalid_transitions(void) {
-    /* Self transitions not allowed */
     LAPLACE_TEST_ASSERT(!laplace_state_transition_valid(LAPLACE_STATE_FREE, LAPLACE_STATE_FREE));
     LAPLACE_TEST_ASSERT(!laplace_state_transition_valid(LAPLACE_STATE_ACTIVE, LAPLACE_STATE_ACTIVE));
 
-    /* Skip transitions not allowed */
     LAPLACE_TEST_ASSERT(!laplace_state_transition_valid(LAPLACE_STATE_FREE, LAPLACE_STATE_READY));
     LAPLACE_TEST_ASSERT(!laplace_state_transition_valid(LAPLACE_STATE_PENDING, LAPLACE_STATE_ACTIVE));
     LAPLACE_TEST_ASSERT(!laplace_state_transition_valid(LAPLACE_STATE_DEAD, LAPLACE_STATE_FREE));
 
-    /* Backward transitions not allowed (except specific ones) */
     LAPLACE_TEST_ASSERT(!laplace_state_transition_valid(LAPLACE_STATE_READY, LAPLACE_STATE_PENDING));
     LAPLACE_TEST_ASSERT(!laplace_state_transition_valid(LAPLACE_STATE_ACTIVE, LAPLACE_STATE_READY));
 
-    /* Out of range */
     LAPLACE_TEST_ASSERT(!laplace_state_transition_valid((laplace_entity_state_t)99, LAPLACE_STATE_FREE));
     LAPLACE_TEST_ASSERT(!laplace_state_transition_valid(LAPLACE_STATE_FREE, (laplace_entity_state_t)99));
     return 0;
 }
 
-/* ------- exhaustive coverage of non-valid transitions ------- */
-
 static int test_state_exhaustive_matrix(void) {
-    /* Count valid transitions: should be exactly 12 in Phase 06 */
     int valid_count = 0;
     for (uint32_t from = 0; from < LAPLACE_STATE_COUNT_; ++from) {
         for (uint32_t to = 0; to < LAPLACE_STATE_COUNT_; ++to) {
@@ -75,8 +62,6 @@ static int test_state_exhaustive_matrix(void) {
     LAPLACE_TEST_ASSERT(valid_count == 12);
     return 0;
 }
-
-/* ------- public entry point ------- */
 
 int laplace_test_state(void) {
     const laplace_test_case_t subtests[] = {

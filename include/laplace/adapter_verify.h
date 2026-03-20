@@ -83,31 +83,16 @@ typedef struct laplace_adapter_verify_rule_result {
 LAPLACE_STATIC_ASSERT(sizeof(laplace_adapter_verify_rule_result_t) == 24u,
                        "laplace_adapter_verify_rule_result_t must be exactly 24 bytes");
 
-/*
- * Query whether a specific fact exists in the committed store.
- * This is a read-only lookup.  Uses entity IDs (not handles) for
- * the argument matching since only existence is being checked.
- */
 laplace_adapter_status_t laplace_adapter_verify_fact_exists(
     const laplace_exact_store_t* store,
     const laplace_adapter_verify_fact_query_t* query,
     laplace_adapter_verify_fact_result_t* result);
 
-/*
- * Query provenance information for a committed provenance record.
- * Returns the provenance kind, source rule, parent fact entities,
- * and derivation tick.
- */
 laplace_adapter_status_t laplace_adapter_verify_provenance(
     const laplace_exact_store_t* store,
     const laplace_adapter_verify_provenance_query_t* query,
     laplace_adapter_verify_provenance_result_t* result);
 
-/*
- * Query the status of a registered rule.
- * Returns whether the rule exists, its validation status, head
- * predicate, arity, and body count.
- */
 laplace_adapter_status_t laplace_adapter_verify_rule(
     const laplace_exact_store_t* store,
     const laplace_adapter_verify_rule_query_t* query,

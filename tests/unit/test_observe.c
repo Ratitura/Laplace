@@ -76,10 +76,6 @@ static int test_observe_set_mask(void) {
 }
 
 static int test_observe_counters_always_update(void) {
-    /*
-     * Critical invariant: counters update regardless of trace level.
-     * Even at OBSERVE_OFF, convenience helpers must increment counters.
-     */
     LAPLACE_ALIGNAS(64) uint8_t backing[TEST_ARENA_SIZE];
     laplace_arena_t arena;
     laplace_arena_init(&arena, backing, sizeof(backing));
@@ -88,7 +84,6 @@ static int test_observe_counters_always_update(void) {
     laplace_observe_init(&ctx, &arena, 1u);
     laplace_observe_set_level(&ctx, LAPLACE_OBSERVE_OFF);
 
-    /* Emit events at OFF level */
     laplace_observe_trace_fact_asserted(&ctx, 0u, 1u, 10u, 0u, 0u, 0u, 0u, 1u);
     laplace_observe_trace_fact_derived(&ctx, 1u, 2u, 11u, 1u, 1u, 0u, 0u, 0u, 2u);
     laplace_observe_trace_fact_duplicate(&ctx, 3u, 0u, 0u, 3u);
@@ -105,7 +100,6 @@ static int test_observe_counters_always_update(void) {
     laplace_observe_trace_transport_evt(&ctx, 2u, 0u, 100u);
     laplace_observe_trace_transport_error(&ctx, 3u, 1u, 200u);
 
-    /* Counters must have been updated despite OFF level */
     const laplace_observe_counters_t* c = laplace_observe_get_counters(&ctx);
     LAPLACE_TEST_ASSERT(c->exact_facts_asserted == 1u);
     LAPLACE_TEST_ASSERT(c->exact_facts_derived == 1u);
@@ -122,17 +116,12 @@ static int test_observe_counters_always_update(void) {
     LAPLACE_TEST_ASSERT(c->transport_events_emitted == 1u);
     LAPLACE_TEST_ASSERT(c->transport_commands_failed == 1u);
 
-    /* But no trace records should have been emitted at OFF */
     LAPLACE_TEST_ASSERT(c->trace_records_emitted == 0u);
     LAPLACE_TEST_ASSERT(laplace_trace_count(&ctx.trace) == 0u);
     return 0;
 }
 
 static int test_observe_level_gating(void) {
-    /*
-     * Verify that AUDIT level emits derivation-critical events but
-     * suppresses DEBUG-only events (exec_step).
-     */
     LAPLACE_ALIGNAS(64) uint8_t backing[TEST_ARENA_SIZE];
     laplace_arena_t arena;
     laplace_arena_init(&arena, backing, sizeof(backing));
@@ -141,18 +130,14 @@ static int test_observe_level_gating(void) {
     laplace_observe_init(&ctx, &arena, 1u);
     laplace_observe_set_level(&ctx, LAPLACE_OBSERVE_AUDIT);
 
-    /* AUDIT-level event: should be emitted */
     laplace_observe_trace_fact_asserted(&ctx, 0u, 1u, 10u, 0u, 0u, 0u, 0u, 1u);
     LAPLACE_TEST_ASSERT(laplace_trace_count(&ctx.trace) == 1u);
 
-    /* DEBUG-level event: should be suppressed */
     laplace_observe_trace_exec_step(&ctx, 20u, 3u, 0u, 0u, 0u, 2u);
     LAPLACE_TEST_ASSERT(laplace_trace_count(&ctx.trace) == 1u); /* still 1 */
 
-    /* But counter was still updated */
     LAPLACE_TEST_ASSERT(ctx.counters.exec_steps == 1u);
 
-    /* At DEBUG level, exec_step should be emitted */
     laplace_observe_set_level(&ctx, LAPLACE_OBSERVE_DEBUG);
     laplace_observe_trace_exec_step(&ctx, 21u, 2u, 0u, 0u, 0u, 3u);
     LAPLACE_TEST_ASSERT(laplace_trace_count(&ctx.trace) == 2u);
@@ -161,10 +146,6 @@ static int test_observe_level_gating(void) {
 }
 
 static int test_observe_subsystem_mask(void) {
-    /*
-     * Verify that subsystem mask filters trace emission
-     * while counters still update.
-     */
     LAPLACE_ALIGNAS(64) uint8_t backing[TEST_ARENA_SIZE];
     laplace_arena_t arena;
     laplace_arena_init(&arena, backing, sizeof(backing));
@@ -173,15 +154,12 @@ static int test_observe_subsystem_mask(void) {
     laplace_observe_init(&ctx, &arena, 1u);
     laplace_observe_set_level(&ctx, LAPLACE_OBSERVE_AUDIT);
 
-    /* Disable EXACT subsystem */
     laplace_observe_set_mask(&ctx, LAPLACE_OBSERVE_MASK_ALL & ~LAPLACE_OBSERVE_MASK_EXACT);
 
-    /* EXACT event should be suppressed */
     laplace_observe_trace_fact_asserted(&ctx, 0u, 1u, 10u, 0u, 0u, 0u, 0u, 1u);
     LAPLACE_TEST_ASSERT(laplace_trace_count(&ctx.trace) == 0u);
     LAPLACE_TEST_ASSERT(ctx.counters.exact_facts_asserted == 1u); /* counter still updated */
 
-    /* BRANCH event should be emitted (BRANCH is still enabled) */
     laplace_observe_trace_branch_create(&ctx, 1u, 0u, 1u);
     LAPLACE_TEST_ASSERT(laplace_trace_count(&ctx.trace) == 1u);
     LAPLACE_TEST_ASSERT(ctx.counters.branch_creates == 1u);
@@ -189,10 +167,6 @@ static int test_observe_subsystem_mask(void) {
 }
 
 static int test_observe_branch_epoch_tagging(void) {
-    /*
-     * Verify that branch/epoch fields in trace records are correctly
-     * populated by convenience helpers.
-     */
     LAPLACE_ALIGNAS(64) uint8_t backing[TEST_ARENA_SIZE];
     laplace_arena_t arena;
     laplace_arena_init(&arena, backing, sizeof(backing));
@@ -201,7 +175,6 @@ static int test_observe_branch_epoch_tagging(void) {
     laplace_observe_init(&ctx, &arena, 1u);
     laplace_observe_set_level(&ctx, LAPLACE_OBSERVE_AUDIT);
 
-    /* Emit a fact_asserted with specific branch/epoch */
     laplace_observe_trace_fact_asserted(&ctx, 0u, 1u, 10u, 0u,
         3u,   /* branch_id */
         7u,   /* branch_gen */
@@ -227,13 +200,11 @@ static int test_observe_reset(void) {
     laplace_observe_context_t ctx;
     laplace_observe_init(&ctx, &arena, 1u);
 
-    /* Emit some events */
     laplace_observe_trace_fact_asserted(&ctx, 0u, 1u, 10u, 0u, 0u, 0u, 0u, 1u);
     laplace_observe_trace_rule_accepted(&ctx, 0u, 2u);
     LAPLACE_TEST_ASSERT(ctx.counters.exact_facts_asserted == 1u);
     LAPLACE_TEST_ASSERT(ctx.counters.exact_rules_accepted == 1u);
 
-    /* Reset */
     laplace_observe_reset(&ctx);
     LAPLACE_TEST_ASSERT(ctx.counters.exact_facts_asserted == 0u);
     LAPLACE_TEST_ASSERT(ctx.counters.exact_rules_accepted == 0u);
@@ -249,9 +220,7 @@ static int test_observe_latency_basic(void) {
     laplace_observe_context_t ctx;
     laplace_observe_init(&ctx, &arena, 1u);
 
-    /* Take a latency sample */
     laplace_observe_latency_sample_t sample = laplace_observe_latency_begin();
-    /* Do some trivial work to burn time */
     volatile uint64_t sum = 0u;
     for (uint32_t i = 0u; i < 1000u; ++i) {
         sum += i;
@@ -282,17 +251,11 @@ static int test_observe_counter_reset(void) {
 
     laplace_observe_reset_counters(&ctx);
     LAPLACE_TEST_ASSERT(ctx.counters.exact_facts_asserted == 0u);
-    /* Trace records are NOT cleared by counter reset */
     LAPLACE_TEST_ASSERT(laplace_trace_count(&ctx.trace) > 0u);
     return 0;
 }
 
 static int test_observe_errors_level(void) {
-    /*
-     * At ERRORS level, only error/overflow events should be traced.
-     * Transport errors should still be traced.
-     * Normal derivation events should NOT be traced.
-     */
     LAPLACE_ALIGNAS(64) uint8_t backing[TEST_ARENA_SIZE];
     laplace_arena_t arena;
     laplace_arena_init(&arena, backing, sizeof(backing));
@@ -301,12 +264,10 @@ static int test_observe_errors_level(void) {
     laplace_observe_init(&ctx, &arena, 1u);
     laplace_observe_set_level(&ctx, LAPLACE_OBSERVE_ERRORS);
 
-    /* Normal audit event — should be suppressed */
     laplace_observe_trace_fact_asserted(&ctx, 0u, 1u, 10u, 0u, 0u, 0u, 0u, 1u);
     LAPLACE_TEST_ASSERT(laplace_trace_count(&ctx.trace) == 0u);
     LAPLACE_TEST_ASSERT(ctx.counters.exact_facts_asserted == 1u);
 
-    /* Transport error — should be traced at ERRORS level */
     laplace_observe_trace_transport_error(&ctx, 1u, 2u, 300u);
     LAPLACE_TEST_ASSERT(laplace_trace_count(&ctx.trace) == 1u);
     LAPLACE_TEST_ASSERT(ctx.counters.transport_commands_failed == 1u);
@@ -321,15 +282,12 @@ static int test_observe_should_trace(void) {
     laplace_observe_context_t ctx;
     laplace_observe_init(&ctx, &arena, 1u);
 
-    /* At AUDIT level, FACT_ASSERTED should be traced */
     LAPLACE_TEST_ASSERT(laplace_observe_should_trace(&ctx,
         LAPLACE_TRACE_SUBSYSTEM_EXACT, LAPLACE_TRACE_KIND_FACT_ASSERTED) == true);
 
-    /* At AUDIT level, EXEC_STEP should NOT be traced */
     LAPLACE_TEST_ASSERT(laplace_observe_should_trace(&ctx,
         LAPLACE_TRACE_SUBSYSTEM_EXEC, LAPLACE_TRACE_KIND_EXEC_STEP) == false);
 
-    /* NULL context should return false */
     LAPLACE_TEST_ASSERT(laplace_observe_should_trace(NULL,
         LAPLACE_TRACE_SUBSYSTEM_EXACT, LAPLACE_TRACE_KIND_FACT_ASSERTED) == false);
     return 0;

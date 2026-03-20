@@ -75,9 +75,6 @@ static laplace_provenance_id_t exec_insert_asserted_provenance(test_exec_fixture
     return prov;
 }
 
-/*
- * Helper: assert a binary fact (predicate, arg0, arg1) and return the fact entity.
- */
 static laplace_entity_handle_t exec_assert_binary_fact(test_exec_fixture_t* const f,
                                                         const laplace_predicate_id_t predicate,
                                                         const laplace_entity_handle_t arg0,
@@ -92,9 +89,6 @@ static laplace_entity_handle_t exec_assert_binary_fact(test_exec_fixture_t* cons
     return fact_entity;
 }
 
-/*
- * Helper: add a rule to the store. Returns rule ID.
- */
 static laplace_rule_id_t exec_add_rule(test_exec_fixture_t* const f,
                                         const laplace_exact_rule_desc_t* const desc) {
     laplace_rule_id_t rule_id = LAPLACE_RULE_ID_INVALID;
@@ -107,7 +101,6 @@ static int test_exec_ready_marking(void) {
     test_exec_fixture_t f;
     LAPLACE_TEST_ASSERT(exec_fixture_init(&f) == 0);
 
-    /* Register predicate and constants */
     const laplace_exact_predicate_desc_t pred_desc = {.arity = 2u, .flags = 0u, .fact_capacity = 32u};
     LAPLACE_TEST_ASSERT(laplace_exact_register_predicate(&f.store, 1u, &pred_desc) == LAPLACE_OK);
 
@@ -115,23 +108,18 @@ static int test_exec_ready_marking(void) {
     const laplace_entity_handle_t b = exec_register_constant(&f, 1u);
     const laplace_provenance_id_t prov = exec_insert_asserted_provenance(&f);
 
-    /* Assert a fact */
     const laplace_entity_handle_t fact_entity = exec_assert_binary_fact(&f, 1u, a, b, prov);
     LAPLACE_TEST_ASSERT(fact_entity.id != LAPLACE_ENTITY_ID_INVALID);
 
-    /* Mark READY */
     LAPLACE_TEST_ASSERT(laplace_exec_ready_count(&f.exec) == 0u);
     LAPLACE_TEST_ASSERT(laplace_exec_mark_ready(&f.exec, fact_entity.id) == LAPLACE_OK);
     LAPLACE_TEST_ASSERT(laplace_exec_ready_count(&f.exec) == 1u);
 
-    /* Double mark is idempotent */
     LAPLACE_TEST_ASSERT(laplace_exec_mark_ready(&f.exec, fact_entity.id) == LAPLACE_OK);
     LAPLACE_TEST_ASSERT(laplace_exec_ready_count(&f.exec) == 1u);
 
-    /* Invalid entity rejected */
     LAPLACE_TEST_ASSERT(laplace_exec_mark_ready(&f.exec, LAPLACE_ENTITY_ID_INVALID) == LAPLACE_ERR_INVALID_ARGUMENT);
 
-    /* Constants cannot be marked ready (not FACT role) */
     LAPLACE_TEST_ASSERT(laplace_exec_mark_ready(&f.exec, a.id) == LAPLACE_ERR_INVALID_STATE);
 
     return 0;
@@ -168,8 +156,6 @@ static int test_exec_trigger_index(void) {
     LAPLACE_TEST_ASSERT(laplace_exact_register_predicate(&f.store, 2u, &pred2) == LAPLACE_OK);
     LAPLACE_TEST_ASSERT(laplace_exact_register_predicate(&f.store, 3u, &pred2) == LAPLACE_OK);
 
-    /* Rule: ancestor(X,Y) :- parent(X,Z), parent(Z,Y).
-     * Body predicates: parent (pred 1) appears at positions 0 and 1. */
     laplace_exact_literal_t body[2];
     memset(body, 0, sizeof(body));
     body[0].predicate = 1u; body[0].arity = 2u;
@@ -189,12 +175,9 @@ static int test_exec_trigger_index(void) {
 
     LAPLACE_TEST_ASSERT(exec_add_rule(&f, &rule_desc) != LAPLACE_RULE_ID_INVALID);
 
-    /* Build trigger index */
     LAPLACE_TEST_ASSERT(laplace_exec_build_trigger_index(&f.exec) == LAPLACE_OK);
 
-    /* Predicate 1 (parent) should have 2 trigger entries (pos 0 and pos 1 of rule 1) */
     LAPLACE_TEST_ASSERT(f.exec.trigger_counts[1] == 2u);
-    /* Predicate 3 (ancestor head) should have 0 trigger entries */
     LAPLACE_TEST_ASSERT(f.exec.trigger_counts[3] == 0u);
 
     return 0;
@@ -204,7 +187,6 @@ static int test_exec_single_rule_derivation_dense(void) {
     test_exec_fixture_t f;
     LAPLACE_TEST_ASSERT(exec_fixture_init(&f) == 0);
 
-    /* Predicates: likes(2), friend(2) */
     const laplace_exact_predicate_desc_t pred2 = {.arity = 2u, .flags = 0u, .fact_capacity = 32u};
     LAPLACE_TEST_ASSERT(laplace_exact_register_predicate(&f.store, 1u, &pred2) == LAPLACE_OK);
     LAPLACE_TEST_ASSERT(laplace_exact_register_predicate(&f.store, 2u, &pred2) == LAPLACE_OK);
@@ -213,10 +195,8 @@ static int test_exec_single_rule_derivation_dense(void) {
     const laplace_entity_handle_t bob   = exec_register_constant(&f, 1u);
     const laplace_provenance_id_t prov  = exec_insert_asserted_provenance(&f);
 
-    /* Fact: likes(alice, bob) */
     (void)exec_assert_binary_fact(&f, 1u, alice, bob, prov);
 
-    /* Rule: friend(X, Y) :- likes(X, Y). */
     laplace_exact_literal_t body[1];
     memset(body, 0, sizeof(body));
     body[0].predicate = 1u; body[0].arity = 2u;
@@ -237,11 +217,9 @@ static int test_exec_single_rule_derivation_dense(void) {
     laplace_exec_set_mode(&f.exec, LAPLACE_EXEC_MODE_DENSE);
     laplace_exec_mark_all_facts_ready(&f.exec);
 
-    /* Run to fixpoint */
     const laplace_exec_run_status_t status = laplace_exec_run(&f.exec);
     LAPLACE_TEST_ASSERT(status == LAPLACE_EXEC_RUN_FIXPOINT);
 
-    /* Verify friend(alice, bob) was derived */
     const laplace_entity_id_t lookup_args[2] = {alice.id, bob.id};
     const laplace_exact_fact_row_t derived_row = laplace_exact_find_fact(&f.store, 2u, lookup_args, 2u);
     LAPLACE_TEST_ASSERT(derived_row != LAPLACE_EXACT_FACT_ROW_INVALID);
@@ -252,12 +230,10 @@ static int test_exec_single_rule_derivation_dense(void) {
     LAPLACE_TEST_ASSERT((derived_fact->flags & LAPLACE_EXACT_FACT_FLAG_COMMITTED) != 0u);
     LAPLACE_TEST_ASSERT((derived_fact->flags & LAPLACE_EXACT_FACT_FLAG_BRANCH_LOCAL) == 0u);
 
-    /* Check stats */
     const laplace_exec_stats_t* const stats = laplace_exec_get_stats(&f.exec);
     LAPLACE_TEST_ASSERT(stats->facts_derived == 1u);
     LAPLACE_TEST_ASSERT(stats->provenance_created >= 1u);
 
-    /* Check provenance */
     const laplace_exact_provenance_record_t* const prov_rec = laplace_exact_get_provenance(&f.store, derived_fact->provenance);
     LAPLACE_TEST_ASSERT(prov_rec != NULL);
     LAPLACE_TEST_ASSERT(prov_rec->kind == LAPLACE_EXACT_PROVENANCE_DERIVED);
@@ -279,7 +255,6 @@ static int test_exec_single_rule_derivation_sparse(void) {
 
     (void)exec_assert_binary_fact(&f, 1u, alice, bob, prov);
 
-    /* Rule: friend(X, Y) :- likes(X, Y). */
     laplace_exact_literal_t body[1];
     memset(body, 0, sizeof(body));
     body[0].predicate = 1u; body[0].arity = 2u;
@@ -317,7 +292,6 @@ static int test_exec_multi_body_join(void) {
     test_exec_fixture_t f;
     LAPLACE_TEST_ASSERT(exec_fixture_init(&f) == 0);
 
-    /* Predicates: parent(2), ancestor(2) */
     const laplace_exact_predicate_desc_t pred2 = {.arity = 2u, .flags = 0u, .fact_capacity = 64u};
     LAPLACE_TEST_ASSERT(laplace_exact_register_predicate(&f.store, 1u, &pred2) == LAPLACE_OK);
     LAPLACE_TEST_ASSERT(laplace_exact_register_predicate(&f.store, 2u, &pred2) == LAPLACE_OK);
@@ -327,11 +301,9 @@ static int test_exec_multi_body_join(void) {
     const laplace_entity_handle_t c = exec_register_constant(&f, 1u);
     const laplace_provenance_id_t prov = exec_insert_asserted_provenance(&f);
 
-    /* Facts: parent(a,b), parent(b,c) */
     (void)exec_assert_binary_fact(&f, 1u, a, b, prov);
     (void)exec_assert_binary_fact(&f, 1u, b, c, prov);
 
-    /* Rule: ancestor(X,Y) :- parent(X,Z), parent(Z,Y). */
     laplace_exact_literal_t body[2];
     memset(body, 0, sizeof(body));
     body[0].predicate = 1u; body[0].arity = 2u;
@@ -358,12 +330,8 @@ static int test_exec_multi_body_join(void) {
     const laplace_exec_run_status_t status = laplace_exec_run(&f.exec);
     LAPLACE_TEST_ASSERT(status == LAPLACE_EXEC_RUN_FIXPOINT);
 
-    /* Verify ancestor(a,c) was derived */
     const laplace_entity_id_t lookup[2] = {a.id, c.id};
     LAPLACE_TEST_ASSERT(laplace_exact_find_fact(&f.store, 2u, lookup, 2u) != LAPLACE_EXACT_FACT_ROW_INVALID);
-
-    /* ancestor(b,?) should NOT exist (no parent(c,?) fact) */
-    /* ancestor(a,b) should NOT exist — parent(a,b) exists but parent(b,b) does not */
 
     const laplace_exec_stats_t* const stats = laplace_exec_get_stats(&f.exec);
     LAPLACE_TEST_ASSERT(stats->facts_derived >= 1u);
@@ -375,8 +343,6 @@ static int test_exec_repeated_variable(void) {
     test_exec_fixture_t f;
     LAPLACE_TEST_ASSERT(exec_fixture_init(&f) == 0);
 
-    /* Predicates: r(2), self_r(1) — but we use arity 2 for self_r as well
-     * for simplicity, with same constant in both positions */
     const laplace_exact_predicate_desc_t pred2 = {.arity = 2u, .flags = 0u, .fact_capacity = 32u};
     const laplace_exact_predicate_desc_t pred1 = {.arity = 1u, .flags = 0u, .fact_capacity = 32u};
     LAPLACE_TEST_ASSERT(laplace_exact_register_predicate(&f.store, 1u, &pred2) == LAPLACE_OK);
@@ -386,11 +352,9 @@ static int test_exec_repeated_variable(void) {
     const laplace_entity_handle_t b = exec_register_constant(&f, 1u);
     const laplace_provenance_id_t prov = exec_insert_asserted_provenance(&f);
 
-    /* Facts: r(a,a), r(a,b) */
     (void)exec_assert_binary_fact(&f, 1u, a, a, prov);
     (void)exec_assert_binary_fact(&f, 1u, a, b, prov);
 
-    /* Rule: self(X) :- r(X,X).  (repeated variable X in body) */
     laplace_exact_literal_t body[1];
     memset(body, 0, sizeof(body));
     body[0].predicate = 1u; body[0].arity = 2u;
@@ -413,11 +377,9 @@ static int test_exec_repeated_variable(void) {
     const laplace_exec_run_status_t status = laplace_exec_run(&f.exec);
     LAPLACE_TEST_ASSERT(status == LAPLACE_EXEC_RUN_FIXPOINT);
 
-    /* self(a) should be derived (from r(a,a)) */
     const laplace_entity_id_t self_a[1] = {a.id};
     LAPLACE_TEST_ASSERT(laplace_exact_find_fact(&f.store, 2u, self_a, 1u) != LAPLACE_EXACT_FACT_ROW_INVALID);
 
-    /* self(b) should NOT be derived (r(b,b) doesn't exist) */
     const laplace_entity_id_t self_b[1] = {b.id};
     LAPLACE_TEST_ASSERT(laplace_exact_find_fact(&f.store, 2u, self_b, 1u) == LAPLACE_EXACT_FACT_ROW_INVALID);
 
@@ -437,11 +399,9 @@ static int test_exec_constant_in_body(void) {
     const laplace_entity_handle_t carol = exec_register_constant(&f, 1u);
     const laplace_provenance_id_t prov  = exec_insert_asserted_provenance(&f);
 
-    /* Facts: likes(alice, bob), likes(carol, bob) */
     (void)exec_assert_binary_fact(&f, 1u, alice, bob, prov);
     (void)exec_assert_binary_fact(&f, 1u, carol, bob, prov);
 
-    /* Rule: special(X, bob) :- likes(X, bob).  (constant bob in body pos 1) */
     laplace_exact_literal_t body[1];
     memset(body, 0, sizeof(body));
     body[0].predicate = 1u; body[0].arity = 2u;
@@ -465,7 +425,6 @@ static int test_exec_constant_in_body(void) {
     const laplace_exec_run_status_t status = laplace_exec_run(&f.exec);
     LAPLACE_TEST_ASSERT(status == LAPLACE_EXEC_RUN_FIXPOINT);
 
-    /* special(alice, bob) and special(carol, bob) should both be derived */
     const laplace_entity_id_t la[2] = {alice.id, bob.id};
     LAPLACE_TEST_ASSERT(laplace_exact_find_fact(&f.store, 2u, la, 2u) != LAPLACE_EXACT_FACT_ROW_INVALID);
     const laplace_entity_id_t lc[2] = {carol.id, bob.id};
@@ -489,17 +448,14 @@ static int test_exec_dedup(void) {
     const laplace_entity_handle_t b = exec_register_constant(&f, 1u);
     const laplace_provenance_id_t prov = exec_insert_asserted_provenance(&f);
 
-    /* Two identical fact assertions: both produce the same fact thanks to Phase 04 dedup */
     (void)exec_assert_binary_fact(&f, 1u, a, b, prov);
 
-    /* Rule: copy(X,Y) :- original(X,Y). */
     laplace_exact_literal_t body[1];
     memset(body, 0, sizeof(body));
     body[0].predicate = 1u; body[0].arity = 2u;
     body[0].terms[0] = (laplace_exact_term_t){.kind = LAPLACE_EXACT_TERM_VARIABLE, .value.variable = 1u};
     body[0].terms[1] = (laplace_exact_term_t){.kind = LAPLACE_EXACT_TERM_VARIABLE, .value.variable = 2u};
 
-    /* Two rules that derive the same head — both should fire but second derivation is deduped */
     laplace_exact_rule_desc_t rule_desc;
     memset(&rule_desc, 0, sizeof(rule_desc));
     rule_desc.head.predicate = 2u; rule_desc.head.arity = 2u;
@@ -509,7 +465,6 @@ static int test_exec_dedup(void) {
     rule_desc.body_count = 1u;
 
     LAPLACE_TEST_ASSERT(exec_add_rule(&f, &rule_desc) != LAPLACE_RULE_ID_INVALID);
-    /* Add same rule again — different rule ID, same semantics */
     LAPLACE_TEST_ASSERT(exec_add_rule(&f, &rule_desc) != LAPLACE_RULE_ID_INVALID);
 
     LAPLACE_TEST_ASSERT(laplace_exec_build_trigger_index(&f.exec) == LAPLACE_OK);
@@ -520,7 +475,6 @@ static int test_exec_dedup(void) {
     const laplace_exec_run_status_t status = laplace_exec_run(&f.exec);
     LAPLACE_TEST_ASSERT(status == LAPLACE_EXEC_RUN_FIXPOINT);
 
-    /* Only one copy(a,b) should exist */
     const laplace_entity_id_t lookup[2] = {a.id, b.id};
     LAPLACE_TEST_ASSERT(laplace_exact_find_fact(&f.store, 2u, lookup, 2u) != LAPLACE_EXACT_FACT_ROW_INVALID);
 
@@ -545,7 +499,6 @@ static int test_exec_provenance_attachment(void) {
 
     const laplace_entity_handle_t source_fact = exec_assert_binary_fact(&f, 1u, a, b, prov);
 
-    /* Rule: derived(X,Y) :- source(X,Y). */
     laplace_exact_literal_t body[1];
     memset(body, 0, sizeof(body));
     body[0].predicate = 1u; body[0].arity = 2u;
@@ -568,7 +521,6 @@ static int test_exec_provenance_attachment(void) {
     laplace_exec_mark_all_facts_ready(&f.exec);
     LAPLACE_TEST_ASSERT(laplace_exec_run(&f.exec) == LAPLACE_EXEC_RUN_FIXPOINT);
 
-    /* Look up derived fact */
     const laplace_entity_id_t lookup[2] = {a.id, b.id};
     const laplace_exact_fact_row_t derived_row = laplace_exact_find_fact(&f.store, 2u, lookup, 2u);
     LAPLACE_TEST_ASSERT(derived_row != LAPLACE_EXACT_FACT_ROW_INVALID);
@@ -605,20 +557,16 @@ static int test_exec_state_transitions(void) {
 
     const laplace_entity_handle_t fact_entity = exec_assert_binary_fact(&f, 1u, a, b, prov);
 
-    /* No rules — just test state transitions */
     LAPLACE_TEST_ASSERT(laplace_exec_build_trigger_index(&f.exec) == LAPLACE_OK);
     laplace_exec_set_mode(&f.exec, LAPLACE_EXEC_MODE_DENSE);
 
-    /* Fact entity starts in READY state (set by exact_assert_fact) */
     LAPLACE_TEST_ASSERT(laplace_entity_pool_get_state(&f.entity_pool, fact_entity) == LAPLACE_STATE_READY);
 
     LAPLACE_TEST_ASSERT(laplace_exec_mark_ready(&f.exec, fact_entity.id) == LAPLACE_OK);
     LAPLACE_TEST_ASSERT(laplace_exec_step(&f.exec) == LAPLACE_OK);
 
-    /* After step, entity should be ACTIVE */
     LAPLACE_TEST_ASSERT(laplace_entity_pool_get_state(&f.entity_pool, fact_entity) == LAPLACE_STATE_ACTIVE);
 
-    /* No more READY entities */
     LAPLACE_TEST_ASSERT(laplace_exec_ready_count(&f.exec) == 0u);
     LAPLACE_TEST_ASSERT(laplace_exec_step(&f.exec) == LAPLACE_ERR_INVALID_STATE);
 
@@ -646,7 +594,6 @@ static int test_exec_bounded_step(void) {
     laplace_exec_mark_all_facts_ready(&f.exec);
     LAPLACE_TEST_ASSERT(laplace_exec_ready_count(&f.exec) == 2u);
 
-    /* Run with budget of 1 step */
     const laplace_exec_run_status_t status = laplace_exec_run(&f.exec);
     LAPLACE_TEST_ASSERT(status == LAPLACE_EXEC_RUN_BUDGET);
 
@@ -661,7 +608,6 @@ static int test_exec_transitive_closure_fixpoint(void) {
     test_exec_fixture_t f;
     LAPLACE_TEST_ASSERT(exec_fixture_init(&f) == 0);
 
-    /* Predicates: edge(2), path(2) */
     const laplace_exact_predicate_desc_t pred2 = {.arity = 2u, .flags = 0u, .fact_capacity = 64u};
     LAPLACE_TEST_ASSERT(laplace_exact_register_predicate(&f.store, 1u, &pred2) == LAPLACE_OK);
     LAPLACE_TEST_ASSERT(laplace_exact_register_predicate(&f.store, 2u, &pred2) == LAPLACE_OK);
@@ -672,12 +618,10 @@ static int test_exec_transitive_closure_fixpoint(void) {
     const laplace_entity_handle_t n4 = exec_register_constant(&f, 1u);
     const laplace_provenance_id_t prov = exec_insert_asserted_provenance(&f);
 
-    /* Linear chain: n1 -> n2 -> n3 -> n4 */
     (void)exec_assert_binary_fact(&f, 1u, n1, n2, prov);
     (void)exec_assert_binary_fact(&f, 1u, n2, n3, prov);
     (void)exec_assert_binary_fact(&f, 1u, n3, n4, prov);
 
-    /* Rule 1: path(X,Y) :- edge(X,Y). (base case) */
     laplace_exact_literal_t body1[1];
     memset(body1, 0, sizeof(body1));
     body1[0].predicate = 1u; body1[0].arity = 2u;
@@ -692,7 +636,6 @@ static int test_exec_transitive_closure_fixpoint(void) {
     rule1.body_literals = body1;
     rule1.body_count = 1u;
 
-    /* Rule 2: path(X,Y) :- path(X,Z), edge(Z,Y). (recursive/inductive step) */
     laplace_exact_literal_t body2[2];
     memset(body2, 0, sizeof(body2));
     body2[0].predicate = 2u; body2[0].arity = 2u;
@@ -720,7 +663,6 @@ static int test_exec_transitive_closure_fixpoint(void) {
     const laplace_exec_run_status_t status = laplace_exec_run(&f.exec);
     LAPLACE_TEST_ASSERT(status == LAPLACE_EXEC_RUN_FIXPOINT);
 
-    /* Expected paths: (1,2), (2,3), (3,4), (1,3), (2,4), (1,4) = 6 path facts */
     const laplace_entity_id_t p12[2] = {n1.id, n2.id};
     const laplace_entity_id_t p23[2] = {n2.id, n3.id};
     const laplace_entity_id_t p34[2] = {n3.id, n4.id};
@@ -735,7 +677,6 @@ static int test_exec_transitive_closure_fixpoint(void) {
     LAPLACE_TEST_ASSERT(laplace_exact_find_fact(&f.store, 2u, p24, 2u) != LAPLACE_EXACT_FACT_ROW_INVALID);
     LAPLACE_TEST_ASSERT(laplace_exact_find_fact(&f.store, 2u, p14, 2u) != LAPLACE_EXACT_FACT_ROW_INVALID);
 
-    /* No spurious paths */
     const laplace_entity_id_t p41[2] = {n4.id, n1.id};
     LAPLACE_TEST_ASSERT(laplace_exact_find_fact(&f.store, 2u, p41, 2u) == LAPLACE_EXACT_FACT_ROW_INVALID);
 
@@ -745,13 +686,7 @@ static int test_exec_transitive_closure_fixpoint(void) {
     return 0;
 }
 
-/*
- * Helper: run a transitive closure scenario and return the set of derived path facts.
- * Returns the total number of path facts found.
- */
 static uint32_t exec_run_tc_and_count(const laplace_exec_mode_t mode) {
-    /* Use fresh fixture with separate static buffers
-     * (We use the global buffers since tests run sequentially) */
     test_exec_fixture_t f;
     memset(&f, 0, sizeof(f));
     (void)laplace_arena_init(&f.entity_arena, g_exec_entity_buf, sizeof(g_exec_entity_buf));
@@ -775,7 +710,6 @@ static uint32_t exec_run_tc_and_count(const laplace_exec_mode_t mode) {
     (void)exec_assert_binary_fact(&f, 1u, nodes[1], nodes[2], prov);
     (void)exec_assert_binary_fact(&f, 1u, nodes[2], nodes[3], prov);
 
-    /* Base rule: path(X,Y) :- edge(X,Y) */
     laplace_exact_literal_t b1[1];
     memset(b1, 0, sizeof(b1));
     b1[0].predicate = 1u; b1[0].arity = 2u;
@@ -790,7 +724,6 @@ static uint32_t exec_run_tc_and_count(const laplace_exec_mode_t mode) {
     r1.body_literals = b1;
     r1.body_count = 1u;
 
-    /* Recursive rule: path(X,Y) :- path(X,Z), edge(Z,Y) */
     laplace_exact_literal_t b2[2];
     memset(b2, 0, sizeof(b2));
     b2[0].predicate = 2u; b2[0].arity = 2u;
@@ -819,7 +752,6 @@ static uint32_t exec_run_tc_and_count(const laplace_exec_mode_t mode) {
     laplace_exec_mark_all_facts_ready(&f.exec);
     (void)laplace_exec_run(&f.exec);
 
-    /* Count all path facts */
     uint32_t path_count = 0u;
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {

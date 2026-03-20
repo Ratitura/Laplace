@@ -21,10 +21,6 @@ static void bench_observe_setup(void) {
     (void)laplace_observe_init(&g_bench_observe_ctx, &g_bench_observe_arena, 1u);
 }
 
-/*
- * Raw trace ring buffer emit cost.
- * This is the minimal cost of writing one 64-byte record into the ring.
- */
 static void bench_trace_emit(void* const context) {
     (void)context;
     laplace_trace_record_t rec;
@@ -36,46 +32,32 @@ static void bench_trace_emit(void* const context) {
     laplace_trace_emit(&g_bench_trace_buf, &rec);
 }
 
-/*
- * Convenience helper cost at OFF level: counter increment only, no trace.
- */
 static void bench_counter_increment_off(void* const context) {
     (void)context;
     laplace_observe_trace_fact_asserted(&g_bench_observe_ctx,
         0u, 1u, 10u, 0u, 0u, 0u, 0u, 1u);
 }
 
-/*
- * Convenience helper cost at AUDIT level: counter increment + trace emission.
- */
 static void bench_trace_audit(void* const context) {
     (void)context;
     laplace_observe_trace_fact_asserted(&g_bench_observe_ctx,
         0u, 1u, 10u, 0u, 0u, 0u, 0u, 1u);
 }
 
-/*
- * exec_step at DEBUG level (normally suppressed at AUDIT).
- */
 static void bench_trace_exec_step(void* const context) {
     (void)context;
     laplace_observe_trace_exec_step(&g_bench_observe_ctx,
         20u, 3u, 0u, 0u, 0u, 100u);
 }
 
-/*
- * Observe context initialization cost.
- */
 static void bench_observe_init_cost(void* const context) {
     (void)context;
-    /* Re-init uses the existing arena allocation */
     laplace_observe_reset(&g_bench_observe_ctx);
 }
 
 void laplace_bench_observe(void) {
     bench_observe_setup();
 
-    /* Raw trace emit */
     {
         const laplace_bench_case_t c = {
             .name = "trace_emit",
@@ -86,7 +68,6 @@ void laplace_bench_observe(void) {
         (void)laplace_bench_run_case(&c);
     }
 
-    /* Counter increment only (OFF level) */
     {
         laplace_observe_set_level(&g_bench_observe_ctx, LAPLACE_OBSERVE_OFF);
         const laplace_bench_case_t c = {
@@ -98,7 +79,6 @@ void laplace_bench_observe(void) {
         (void)laplace_bench_run_case(&c);
     }
 
-    /* AUDIT-level trace (counter + trace emission) */
     {
         laplace_observe_set_level(&g_bench_observe_ctx, LAPLACE_OBSERVE_AUDIT);
         const laplace_bench_case_t c = {
@@ -110,7 +90,6 @@ void laplace_bench_observe(void) {
         (void)laplace_bench_run_case(&c);
     }
 
-    /* DEBUG-level exec_step */
     {
         laplace_observe_set_level(&g_bench_observe_ctx, LAPLACE_OBSERVE_DEBUG);
         const laplace_bench_case_t c = {
@@ -122,7 +101,6 @@ void laplace_bench_observe(void) {
         (void)laplace_bench_run_case(&c);
     }
 
-    /* Reset cost */
     {
         const laplace_bench_case_t c = {
             .name = "observe_reset",

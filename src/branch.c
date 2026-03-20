@@ -116,12 +116,6 @@ laplace_error_t laplace_branch_system_init(laplace_branch_system_t* const system
         return LAPLACE_ERR_CAPACITY_EXHAUSTED;
     }
 
-    /* Zero per-slot metadata arrays only (small: 32 slots each).
-     * Per-branch ownership spans (owned_fact_rows, owned_fact_promotions,
-     * owned_entities, owned_entity_promotions) are NOT eagerly cleared.
-     * They are bounded by owned_fact_counts[slot] / owned_entity_counts[slot]
-     * which are initialized to 0, so no stale data is ever read.
-     * This avoids ~2.8 MB of unnecessary memset on init. */
     memset(system->statuses, 0, (size_t)LAPLACE_BRANCH_MAX_BRANCHES * sizeof(uint8_t));
     memset(system->parent_ids, 0, (size_t)LAPLACE_BRANCH_MAX_BRANCHES * sizeof(laplace_branch_id_t));
     memset(system->parent_generations, 0, (size_t)LAPLACE_BRANCH_MAX_BRANCHES * sizeof(laplace_branch_generation_t));

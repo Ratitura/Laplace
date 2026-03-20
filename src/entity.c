@@ -2,10 +2,6 @@
 
 #include <string.h>
 
-/*
- * Internal: convert entity ID (1-based) to slot index (0-based).
- * Entity ID 0 is reserved invalid.
- */
 static inline uint32_t laplace__entity_id_to_slot(const laplace_entity_id_t id) {
     LAPLACE_ASSERT(id != LAPLACE_ENTITY_ID_INVALID);
     return id - 1u;
@@ -128,8 +124,6 @@ laplace_error_t laplace_entity_pool_init(laplace_entity_pool_t* const pool,
     pool->free_count = capacity;
     pool->alive_count = 0u;
 
-    /* Initialize: all slots are FREE, generation starts at 1.
-     * Free stack is filled top-down so that slot 0 is popped first. */
     for (uint32_t i = 0u; i < capacity; ++i) {
         generations[i] = 1u;           /* first valid generation */
         states[i] = LAPLACE_STATE_FREE;

@@ -27,7 +27,6 @@ static int test_replay_init(void) {
     LAPLACE_TEST_ASSERT(meta.first_transport_correlation == 0u);
     LAPLACE_TEST_ASSERT(meta.last_transport_correlation == 0u);
 
-    /* Backend name must be non-empty */
     LAPLACE_TEST_ASSERT(meta.backend_name[0] != '\0');
     return 0;
 }
@@ -81,17 +80,14 @@ static int test_replay_transport_correlation(void) {
     laplace_replay_metadata_t meta;
     laplace_replay_init(&meta, 4u);
 
-    /* First correlation */
     laplace_replay_update_transport_correlation(&meta, 500u);
     LAPLACE_TEST_ASSERT(meta.first_transport_correlation == 500u);
     LAPLACE_TEST_ASSERT(meta.last_transport_correlation == 500u);
 
-    /* Second correlation — first stays, last updates */
     laplace_replay_update_transport_correlation(&meta, 600u);
     LAPLACE_TEST_ASSERT(meta.first_transport_correlation == 500u);
     LAPLACE_TEST_ASSERT(meta.last_transport_correlation == 600u);
 
-    /* Third correlation */
     laplace_replay_update_transport_correlation(&meta, 700u);
     LAPLACE_TEST_ASSERT(meta.first_transport_correlation == 500u);
     LAPLACE_TEST_ASSERT(meta.last_transport_correlation == 700u);
